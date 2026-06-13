@@ -75,7 +75,7 @@ export default function Dashboard() {
         <View className="flex-row items-center justify-between rounded-xl border border-orange-500/30 bg-gray-800 p-4">
           <View className="flex-1 pr-3">
             <Text className="text-lg font-bold text-orange-400">
-              こんにちは！目標: {goalLabel[userProfile.goal] ?? userProfile.goal}
+              こんにちは！目標: {goalLabel[userProfile.goalDirection] ?? userProfile.goalDirection}
             </Text>
             <Text className="mt-1 text-sm text-gray-400">
               {motivationMessages[userProfile.motivation] ?? 'トレーニングを頑張りましょう！'}

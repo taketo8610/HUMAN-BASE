@@ -1,22 +1,30 @@
 import { useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Check } from 'lucide-react-native';
 
 import {
   UserProfile,
   Motivation,
   Sex,
-  ActivityLevel,
+  TrainingFrequency,
+  TrainingIntensity,
   TrainingEnvironment,
   Goal,
+  FitnessGoal,
 } from '@/types';
 import {
+  calcAge,
   calculateBMR,
   calculateTDEE,
-  recommendGoal,
-  calculateTargetWeight,
   calculateDailyCalories,
+  calculateTargetWeight,
+  calculateMacros,
+  recommendGoal,
 } from '@/lib/fitness';
+import { suggestMeals } from '@/lib/mealSuggestion';
+import { genId } from '@/lib/id';
+import BodyComposition from '@/components/BodyComposition';
 import { placeholderColor } from '@/components/ui';
 
 interface Props {
@@ -24,46 +32,43 @@ interface Props {
   onSkip: () => void;
 }
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 7;
 
-const motivationOptions: { value: Motivation; emoji: string; label: string }[] = [
-  { value: 'attractive', emoji: '💪', label: 'モテたい' },
-  { value: 'health', emoji: '🏥', label: '健康になりたい' },
-  { value: 'strength', emoji: '🏋️', label: '筋力を上げたい' },
-  { value: 'lose_fat', emoji: '🔥', label: '体を絞りたい' },
-  { value: 'muscle', emoji: '💿', label: '筋肉をつけたい' },
-  { value: 'custom', emoji: '✏️', label: 'その他' },
+const motivationOptions: { value: Motivation; emoji: string; label: string; hint: string }[] = [
+  { value: 'attractive', emoji: '💪', label: 'モテたい', hint: '映える体型と体重・体脂肪を目標にします' },
+  { value: 'health', emoji: '🏥', label: '健康になりたい', hint: '健康リスクが最小の体重・BMIを目標にします' },
+  { value: 'strength', emoji: '🏋️', label: '筋力を上げたい', hint: 'ベンチ等の種目重量（BIG3）を目標にします' },
+  { value: 'lose_fat', emoji: '🔥', label: '体を絞りたい', hint: '体脂肪を落とす目標を設定します' },
+  { value: 'muscle', emoji: '🥩', label: '筋肉をつけたい', hint: '増量と種目重量を目標にします' },
+  { value: 'custom', emoji: '✏️', label: 'その他', hint: '自由に目標を設定します' },
 ];
 
-const activityOptions: { value: ActivityLevel; emoji: string; label: string; desc: string }[] = [
-  { value: 'sedentary', emoji: '🛋️', label: 'ほぼ運動しない', desc: 'デスクワーク中心' },
-  { value: 'light', emoji: '🚶', label: '週1〜2回', desc: '軽い運動・散歩' },
-  { value: 'moderate', emoji: '🏃', label: '週3〜4回', desc: '定期的に運動' },
-  { value: 'active', emoji: '⚡', label: 'ほぼ毎日', desc: 'ハードなトレーニング' },
-  { value: 'very_active', emoji: '🔥', label: '毎日2回以上', desc: 'アスリートレベル' },
+const frequencyOptions: { value: TrainingFrequency; label: string }[] = [
+  { value: 'none', label: 'ほぼ運動しない' },
+  { value: 'w1_2', label: '週1〜2回' },
+  { value: 'w3_4', label: '週3〜4回' },
+  { value: 'w5_6', label: '週5〜6回' },
+  { value: 'daily', label: '毎日' },
+];
+
+const intensityOptions: { value: TrainingIntensity; label: string; desc: string }[] = [
+  { value: 'light', label: '軽め', desc: '息が上がらない程度' },
+  { value: 'moderate', label: '普通', desc: '程よく追い込む' },
+  { value: 'hard', label: 'ハード', desc: '毎回しっかり追い込む' },
 ];
 
 const envOptions: { value: TrainingEnvironment; emoji: string; label: string; desc: string }[] = [
   { value: 'gym', emoji: '🏋️', label: 'ジム', desc: 'マシン・フリーウェイト' },
-  { value: 'bodyweight', emoji: '🤸', label: '自重のみ', desc: '器具なしでOK' },
+  { value: 'bodyweight', emoji: '🤸', label: '自重', desc: '器具なしでOK' },
   { value: 'home_equipment', emoji: '🏠', label: '自宅（器具あり）', desc: 'ダンベル・バーベル' },
 ];
 
 const goalLabels: Record<Goal, string> = { bulk: '増量', cut: '減量', maintain: '維持' };
-const goalDescriptions: Record<Goal, string> = {
-  bulk: 'BMIが低めなので、筋肉をつけてボディメイクしましょう',
-  cut: 'BMIがやや高めなので、体脂肪を減らすことをおすすめします',
-  maintain: 'BMIが理想的な範囲です。体型を維持しましょう',
-};
-
-function getMealPlan(calories: number) {
-  return {
-    breakfast: Math.round(calories * 0.25),
-    lunch: Math.round(calories * 0.35),
-    dinner: Math.round(calories * 0.3),
-    snack: Math.round(calories * 0.1),
-  };
-}
+const liftDefs = [
+  { key: 'bench', label: 'ベンチプレス' },
+  { key: 'squat', label: 'スクワット' },
+  { key: 'deadlift', label: 'デッドリフト' },
+] as const;
 
 export default function OnboardingFlow({ onComplete, onSkip }: Props) {
   const insets = useSafeAreaInsets();
@@ -71,43 +76,65 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
   const [motivation, setMotivation] = useState<Motivation>('health');
   const [motivationCustom, setMotivationCustom] = useState('');
   const [sex, setSex] = useState<Sex>('male');
-  const [age, setAge] = useState(25);
+  const [birthDate, setBirthDate] = useState('2000-01-01');
   const [height, setHeight] = useState(170);
   const [weight, setWeight] = useState(70);
-  const [activityLevel, setActivityLevel] = useState<ActivityLevel>('moderate');
-  const [trainingEnvironment, setTrainingEnvironment] = useState<TrainingEnvironment>('gym');
+  const [frequency, setFrequency] = useState<TrainingFrequency>('w3_4');
+  const [intensity, setIntensity] = useState<TrainingIntensity>('moderate');
+  const [environments, setEnvironments] = useState<TrainingEnvironment[]>(['gym']);
+  const [goalDirection, setGoalDirection] = useState<Goal>('maintain');
+  const [lifts, setLifts] = useState<Record<string, string>>({ bench: '', squat: '', deadlift: '' });
 
-  const bmi = weight / Math.pow(height / 100, 2);
-  const suggestedGoal = recommendGoal(weight, height);
-  const [goal, setGoal] = useState<Goal>(suggestedGoal);
+  const isLift = motivation === 'strength' || motivation === 'muscle';
+  const recommendedDir: Goal =
+    motivation === 'lose_fat' ? 'cut' : motivation === 'muscle' ? 'bulk' : recommendGoal(weight, height);
+
+  const age = calcAge(birthDate);
   const bmr = calculateBMR(sex, weight, height, age);
-  const tdee = calculateTDEE(bmr, activityLevel);
-  const targetWeight = calculateTargetWeight(sex, height, goal);
-  const dailyCalorieTarget = calculateDailyCalories(tdee, goal);
-  const targetBMI = targetWeight / Math.pow(height / 100, 2);
-  const mealPlan = getMealPlan(dailyCalorieTarget);
+  const tdee = calculateTDEE(bmr, { frequency, intensity });
+  const dailyCalorieTarget = calculateDailyCalories(tdee, goalDirection);
+  const macros = calculateMacros(dailyCalorieTarget, weight, goalDirection);
+  const targetWeight = calculateTargetWeight(weight, sex, height, goalDirection);
+  const meals = suggestMeals(dailyCalorieTarget, goalDirection);
+
+  const toggleEnv = (v: TrainingEnvironment) =>
+    setEnvironments((prev) => (prev.includes(v) ? prev.filter((e) => e !== v) : [...prev, v]));
 
   function handleComplete() {
-    onComplete({
+    const goals: FitnessGoal[] = [];
+    if (isLift) {
+      liftDefs.forEach((l) => {
+        const n = Number(lifts[l.key]);
+        if (n > 0) goals.push({ id: genId(), kind: 'lift', exercise: l.label, target: n, unit: 'kg', label: l.label });
+      });
+    }
+    if (motivation !== 'strength') {
+      goals.push({ id: genId(), kind: 'weight', target: targetWeight, unit: 'kg', label: '目標体重' });
+    }
+
+    const profile: UserProfile = {
       motivation,
       motivationCustom: motivation === 'custom' ? motivationCustom : undefined,
       sex,
-      age,
+      birthDate,
       height,
       weight,
-      activityLevel,
-      trainingEnvironment,
+      trainingFrequency: frequency,
+      trainingIntensity: intensity,
+      trainingEnvironments: environments.length > 0 ? environments : ['gym'],
+      goalDirection,
+      goals,
       targetWeight,
       dailyCalorieTarget,
-      goal,
+      macros,
       onboardingCompleted: true,
-    });
+    };
+    onComplete(profile);
   }
 
   const progressPct = ((step - 1) / (TOTAL_STEPS - 1)) * 100;
-
-  const numField =
-    'rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white';
+  const numField = 'rounded-lg border border-gray-700 bg-gray-800 px-4 py-3 text-white';
+  const selectedMotivation = motivationOptions.find((m) => m.value === motivation);
 
   return (
     <View
@@ -123,14 +150,17 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
       </View>
 
       <View className="mx-6 mb-6 h-1.5 rounded-full bg-gray-700">
-        <View className="h-full rounded-full bg-orange-500" style={{ width: `${progressPct}%` }} />
+        <View
+          className="h-full rounded-full bg-orange-500"
+          style={{ width: `${progressPct}%` as `${number}%` }}
+        />
       </View>
 
       <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 24 }}>
         {step === 1 && (
           <View>
             <Text className="mb-2 text-2xl font-bold text-white">目標は何ですか？</Text>
-            <Text className="mb-6 text-gray-400">あなたのモチベーションを教えてください</Text>
+            <Text className="mb-6 text-gray-400">目的に合わせて、設定する目標の種類が変わります</Text>
             <View className="flex-row flex-wrap gap-3">
               {motivationOptions.map((opt) => {
                 const active = motivation === opt.value;
@@ -155,6 +185,11 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
                 placeholderTextColor={placeholderColor}
                 className={`mt-4 ${numField}`}
               />
+            )}
+            {selectedMotivation && (
+              <View className="mt-4 rounded-xl border border-orange-500/30 bg-orange-500/5 p-4">
+                <Text className="text-sm text-orange-400">➜ {selectedMotivation.hint}</Text>
+              </View>
             )}
           </View>
         )}
@@ -185,23 +220,39 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
                   })}
                 </View>
               </View>
-              {(
-                [
-                  { label: '年齢', value: age, set: setAge },
-                  { label: '身長 (cm)', value: height, set: setHeight },
-                  { label: '体重 (kg)', value: weight, set: setWeight },
-                ] as const
-              ).map((f) => (
-                <View key={f.label}>
-                  <Text className="mb-2 text-sm text-gray-400">{f.label}</Text>
+              <View>
+                <Text className="mb-2 text-sm text-gray-400">生年月日</Text>
+                <TextInput
+                  value={birthDate}
+                  onChangeText={setBirthDate}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={placeholderColor}
+                  className={numField}
+                />
+                <Text className="mt-1 text-xs text-gray-500">
+                  現在の年齢: {age > 0 ? `${age}歳` : '—'}（誕生日が来ると自動で更新されます）
+                </Text>
+              </View>
+              <View className="flex-row gap-4">
+                <View className="flex-1">
+                  <Text className="mb-2 text-sm text-gray-400">身長 (cm)</Text>
                   <TextInput
                     keyboardType="numeric"
-                    value={String(f.value)}
-                    onChangeText={(t) => f.set(Number(t) || 0)}
+                    value={String(height)}
+                    onChangeText={(t) => setHeight(Number(t) || 0)}
                     className={numField}
                   />
                 </View>
-              ))}
+                <View className="flex-1">
+                  <Text className="mb-2 text-sm text-gray-400">体重 (kg)</Text>
+                  <TextInput
+                    keyboardType="numeric"
+                    value={String(weight)}
+                    onChangeText={(t) => setWeight(Number(t) || 0)}
+                    className={numField}
+                  />
+                </View>
+              </View>
             </View>
           </View>
         )}
@@ -209,22 +260,41 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
         {step === 3 && (
           <View>
             <Text className="mb-2 text-2xl font-bold text-white">活動量</Text>
-            <Text className="mb-6 text-gray-400">普段の運動量を教えてください</Text>
-            <View className="gap-3">
-              {activityOptions.map((opt) => {
-                const active = activityLevel === opt.value;
+            <Text className="mb-6 text-gray-400">頻度と強度をそれぞれ教えてください</Text>
+            <Text className="mb-2 text-sm text-gray-400">トレーニング頻度</Text>
+            <View className="mb-6 gap-2">
+              {frequencyOptions.map((opt) => {
+                const active = frequency === opt.value;
                 return (
                   <Pressable
                     key={opt.value}
-                    onPress={() => setActivityLevel(opt.value)}
-                    className={`flex-row items-center gap-4 rounded-xl border-2 p-4 ${
+                    onPress={() => setFrequency(opt.value)}
+                    className={`rounded-xl border-2 px-4 py-3 ${
                       active ? 'border-orange-500 bg-orange-500/10' : 'border-gray-700 bg-gray-800'
                     }`}>
-                    <Text className="text-2xl">{opt.emoji}</Text>
-                    <View className="flex-1">
-                      <Text className="font-medium text-white">{opt.label}</Text>
-                      <Text className="text-sm text-gray-400">{opt.desc}</Text>
-                    </View>
+                    <Text className={`font-medium ${active ? 'text-orange-400' : 'text-gray-200'}`}>
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text className="mb-2 text-sm text-gray-400">1回あたりの強度</Text>
+            <View className="flex-row gap-3">
+              {intensityOptions.map((opt) => {
+                const active = intensity === opt.value;
+                return (
+                  <Pressable
+                    key={opt.value}
+                    onPress={() => setIntensity(opt.value)}
+                    className={`flex-1 rounded-xl border-2 p-3 ${
+                      active ? 'border-orange-500 bg-orange-500/10' : 'border-gray-700 bg-gray-800'
+                    }`}>
+                    <Text
+                      className={`text-center font-medium ${active ? 'text-orange-400' : 'text-gray-200'}`}>
+                      {opt.label}
+                    </Text>
+                    <Text className="mt-1 text-center text-[10px] text-gray-400">{opt.desc}</Text>
                   </Pressable>
                 );
               })}
@@ -235,14 +305,14 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
         {step === 4 && (
           <View>
             <Text className="mb-2 text-2xl font-bold text-white">運動環境</Text>
-            <Text className="mb-6 text-gray-400">どこでトレーニングしますか？</Text>
+            <Text className="mb-6 text-gray-400">あてはまるものをすべて選んでください（複数可）</Text>
             <View className="gap-3">
               {envOptions.map((opt) => {
-                const active = trainingEnvironment === opt.value;
+                const active = environments.includes(opt.value);
                 return (
                   <Pressable
                     key={opt.value}
-                    onPress={() => setTrainingEnvironment(opt.value)}
+                    onPress={() => toggleEnv(opt.value)}
                     className={`flex-row items-center gap-4 rounded-xl border-2 p-4 ${
                       active ? 'border-orange-500 bg-orange-500/10' : 'border-gray-700 bg-gray-800'
                     }`}>
@@ -250,6 +320,12 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
                     <View className="flex-1">
                       <Text className="font-medium text-white">{opt.label}</Text>
                       <Text className="text-sm text-gray-400">{opt.desc}</Text>
+                    </View>
+                    <View
+                      className={`h-6 w-6 items-center justify-center rounded-md border-2 ${
+                        active ? 'border-orange-500 bg-orange-500' : 'border-gray-600'
+                      }`}>
+                      {active && <Check color="#ffffff" size={14} />}
                     </View>
                   </Pressable>
                 );
@@ -260,89 +336,105 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
 
         {step === 5 && (
           <View>
-            <Text className="mb-2 text-2xl font-bold text-white">あなたの目標プラン</Text>
-            <Text className="mb-6 text-gray-400">計算結果に基づいた推奨プランです</Text>
+            <Text className="mb-2 text-2xl font-bold text-white">目標を設定</Text>
+            <Text className="mb-6 text-gray-400">
+              {isLift ? '目指す重量と方向性を決めましょう' : '目的に合った体型を目安に設定しましょう'}
+            </Text>
 
-            <View className="mb-4 rounded-xl bg-gray-800 p-4">
-              <Text className="mb-1 text-sm text-gray-400">推奨ゴール</Text>
-              <Text className="mb-1 text-2xl font-bold text-orange-400">
-                {goalLabels[suggestedGoal]}
-              </Text>
-              <Text className="text-sm text-gray-300">{goalDescriptions[suggestedGoal]}</Text>
+            <View className="mb-4">
+              <BodyComposition motivation={motivation} sex={sex} height={height} currentWeight={weight} />
             </View>
 
-            <View className="mb-4 rounded-xl bg-gray-800 p-4">
-              <Text className="mb-2 text-sm text-gray-400">ゴールを選択</Text>
-              <View className="flex-row gap-2">
-                {(['bulk', 'maintain', 'cut'] as Goal[]).map((g) => {
-                  const active = goal === g;
-                  return (
-                    <Pressable
-                      key={g}
-                      onPress={() => setGoal(g)}
-                      className={`flex-1 rounded-lg border-2 py-2 ${
-                        active ? 'border-orange-500 bg-orange-500/10' : 'border-gray-700'
-                      }`}>
-                      <Text
-                        className={`text-center text-sm font-medium ${active ? 'text-orange-400' : 'text-gray-300'}`}>
-                        {goalLabels[g]}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
+            <Text className="mb-2 text-sm text-gray-400">
+              カロリーの方向性（おすすめ: {goalLabels[recommendedDir]}）
+            </Text>
+            <View className="mb-4 flex-row gap-2">
+              {(['bulk', 'maintain', 'cut'] as Goal[]).map((g) => {
+                const active = goalDirection === g;
+                return (
+                  <Pressable
+                    key={g}
+                    onPress={() => setGoalDirection(g)}
+                    className={`flex-1 rounded-lg border-2 py-2 ${
+                      active ? 'border-orange-500 bg-orange-500/10' : 'border-gray-700'
+                    }`}>
+                    <Text
+                      className={`text-center text-sm font-medium ${active ? 'text-orange-400' : 'text-gray-300'}`}>
+                      {goalLabels[g]}
+                      {recommendedDir === g ? ' ★' : ''}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {isLift && (
+              <View className="mb-4 gap-3 rounded-xl bg-gray-800 p-4">
+                <Text className="text-sm text-gray-400">種目別の目標重量（kg・任意）</Text>
+                {liftDefs.map((l) => (
+                  <View key={l.key} className="flex-row items-center justify-between gap-3">
+                    <Text className="flex-1 text-gray-200">{l.label}</Text>
+                    <TextInput
+                      keyboardType="numeric"
+                      value={lifts[l.key]}
+                      onChangeText={(t) => setLifts((prev) => ({ ...prev, [l.key]: t }))}
+                      placeholder="kg"
+                      placeholderTextColor={placeholderColor}
+                      className="w-24 rounded-lg bg-gray-700 px-3 py-2 text-center text-white"
+                    />
+                  </View>
+                ))}
               </View>
-            </View>
+            )}
 
-            <View className="mb-4 rounded-xl bg-gray-800 p-4">
-              <Text className="mb-3 text-sm text-gray-400">現在 → 目標</Text>
-              <View className="flex-row items-center justify-between">
-                <View className="items-center">
-                  <Text className="text-2xl font-bold text-white">
-                    {weight}
-                    <Text className="text-sm text-gray-400"> kg</Text>
-                  </Text>
-                  <Text className="text-xs text-gray-400">BMI {bmi.toFixed(1)}</Text>
-                </View>
-                <Text className="text-2xl text-orange-500">→</Text>
-                <View className="items-center">
-                  <Text className="text-2xl font-bold text-orange-400">
-                    {targetWeight}
-                    <Text className="text-sm text-gray-400"> kg</Text>
-                  </Text>
-                  <Text className="text-xs text-gray-400">BMI {targetBMI.toFixed(1)}</Text>
-                </View>
-              </View>
-            </View>
-
-            <View className="mb-4 rounded-xl bg-gray-800 p-4">
+            <View className="rounded-xl bg-gray-800 p-4">
               <Text className="mb-1 text-sm text-gray-400">1日の目標カロリー</Text>
               <Text className="text-3xl font-bold text-orange-400">
                 {dailyCalorieTarget}
                 <Text className="text-lg text-gray-400"> kcal</Text>
               </Text>
-              <Text className="mt-1 text-xs text-gray-500">TDEE: {tdee} kcal</Text>
-            </View>
-
-            <View className="rounded-xl bg-gray-800 p-4">
-              <Text className="mb-3 text-sm text-gray-400">サンプル食事プラン</Text>
-              <View className="gap-2">
-                {[
-                  { label: '🌅 朝食 — 卵かけご飯・納豆・味噌汁', kcal: mealPlan.breakfast },
-                  { label: '☀️ 昼食 — 鶏胸肉定食・野菜サラダ', kcal: mealPlan.lunch },
-                  { label: '🌙 夕食 — 焼き魚・ブロッコリー・玄米', kcal: mealPlan.dinner },
-                  { label: '🍌 間食 — バナナ・プロテイン', kcal: mealPlan.snack },
-                ].map((m) => (
-                  <View key={m.label} className="flex-row items-center justify-between">
-                    <Text className="flex-1 pr-2 text-sm text-gray-200">{m.label}</Text>
-                    <Text className="text-sm font-medium text-orange-400">{m.kcal} kcal</Text>
-                  </View>
-                ))}
-              </View>
+              <Text className="mt-1 text-xs text-gray-500">
+                TDEE: {tdee} kcal ・ 目標体重: {targetWeight} kg
+              </Text>
             </View>
           </View>
         )}
 
         {step === 6 && (
+          <View>
+            <Text className="mb-2 text-2xl font-bold text-white">食事プラン</Text>
+            <Text className="mb-6 text-gray-400">目標カロリーと栄養バランスに合わせた目安です</Text>
+
+            <View className="mb-4 flex-row gap-2">
+              {[
+                { label: 'カロリー', value: `${dailyCalorieTarget}`, unit: 'kcal', color: 'text-orange-400' },
+                { label: 'P（たんぱく質）', value: `${macros.protein}`, unit: 'g', color: 'text-blue-400' },
+                { label: 'F（脂質）', value: `${macros.fat}`, unit: 'g', color: 'text-red-400' },
+                { label: 'C（炭水化物）', value: `${macros.carbs}`, unit: 'g', color: 'text-yellow-400' },
+              ].map((m) => (
+                <View key={m.label} className="flex-1 items-center rounded-xl bg-gray-800 p-2">
+                  <Text className="mb-1 text-center text-[9px] text-gray-400">{m.label}</Text>
+                  <Text className={`text-sm font-bold ${m.color}`}>{m.value}</Text>
+                  <Text className="text-[9px] text-gray-500">{m.unit}</Text>
+                </View>
+              ))}
+            </View>
+
+            <View className="gap-2 rounded-xl bg-gray-800 p-4">
+              <Text className="mb-1 text-sm text-gray-400">{goalLabels[goalDirection]}向けの食事例</Text>
+              {meals.map((m) => (
+                <View key={m.meal} className="flex-row items-center justify-between">
+                  <Text className="flex-1 pr-2 text-sm text-gray-200">
+                    {m.emoji} {m.meal} — {m.items}
+                  </Text>
+                  <Text className="text-sm font-medium text-orange-400">{m.kcal} kcal</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {step === 7 && (
           <View className="items-center">
             <Text className="mb-4 text-6xl">🎉</Text>
             <Text className="mb-2 text-3xl font-bold text-white">設定完了！</Text>
@@ -350,18 +442,20 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
 
             <View className="mb-8 w-full gap-3 rounded-xl bg-gray-800 p-5">
               {[
-                { label: 'ゴール', value: goalLabels[goal] },
+                { label: '目的', value: motivationOptions.find((m) => m.value === motivation)?.label ?? '' },
+                { label: '方向性', value: goalLabels[goalDirection] },
                 { label: '現在体重', value: `${weight} kg` },
                 { label: '目標体重', value: `${targetWeight} kg` },
                 { label: '1日の目標カロリー', value: `${dailyCalorieTarget} kcal` },
+                { label: 'PFC', value: `${macros.protein} / ${macros.fat} / ${macros.carbs} g` },
                 {
                   label: '運動環境',
-                  value: envOptions.find((e) => e.value === trainingEnvironment)?.label ?? '',
+                  value: environments.map((e) => envOptions.find((o) => o.value === e)?.label).join('・'),
                 },
               ].map((row) => (
-                <View key={row.label} className="flex-row justify-between">
+                <View key={row.label} className="flex-row justify-between gap-3">
                   <Text className="text-gray-400">{row.label}</Text>
-                  <Text className="font-medium text-white">{row.value}</Text>
+                  <Text className="flex-1 text-right font-medium text-white">{row.value}</Text>
                 </View>
               ))}
             </View>
@@ -375,7 +469,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
         )}
       </ScrollView>
 
-      {step < 6 && (
+      {step < TOTAL_STEPS && (
         <View className="flex-row gap-3 px-6 pb-4 pt-2">
           {step > 1 && (
             <Pressable
