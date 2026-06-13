@@ -194,3 +194,24 @@ export function targetWeightFromBMI(bmiRange: [number, number], height: number):
   const heightM = height / 100;
   return Math.round(mid * heightM * heightM);
 }
+
+// 種目別の標準的な目標目安（中級者の体重比）。あくまで参考値で、ユーザーは自由に設定できる。
+export function recommendLiftTargets(weight: number): {
+  bench: number;
+  squat: number;
+  deadlift: number;
+} {
+  return {
+    bench: Math.round(weight * 1.0),
+    squat: Math.round(weight * 1.25),
+    deadlift: Math.round(weight * 1.5),
+  };
+}
+
+// 目標体重と現在体重の差から、カロリーの方向性（増量/維持/減量）を判定する。
+export function directionFromWeights(currentWeight: number, targetWeight: number): Goal {
+  const diff = targetWeight - currentWeight;
+  if (diff > 1) return 'bulk';
+  if (diff < -1) return 'cut';
+  return 'maintain';
+}

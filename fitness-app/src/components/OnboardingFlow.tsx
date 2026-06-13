@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Slider from '@react-native-community/slider';
 import { Check } from 'lucide-react-native';
 
 import {
@@ -18,13 +19,15 @@ import {
   calculateBMR,
   calculateTDEE,
   calculateDailyCalories,
-  calculateTargetWeight,
   calculateMacros,
-  recommendGoal,
+  recommendBodyComposition,
+  recommendLiftTargets,
+  directionFromWeights,
 } from '@/lib/fitness';
 import { suggestMeals } from '@/lib/mealSuggestion';
 import { genId } from '@/lib/id';
 import BodyComposition from '@/components/BodyComposition';
+import { colors } from '@/lib/colors';
 import { placeholderColor } from '@/components/ui';
 
 interface Props {
@@ -35,12 +38,12 @@ interface Props {
 const TOTAL_STEPS = 7;
 
 const motivationOptions: { value: Motivation; emoji: string; label: string; hint: string }[] = [
-  { value: 'attractive', emoji: '💪', label: 'モテたい', hint: '映える体型と体重・体脂肪を目標にします' },
-  { value: 'health', emoji: '🏥', label: '健康になりたい', hint: '健康リスクが最小の体重・BMIを目標にします' },
-  { value: 'strength', emoji: '🏋️', label: '筋力を上げたい', hint: 'ベンチ等の種目重量（BIG3）を目標にします' },
-  { value: 'lose_fat', emoji: '🔥', label: '体を絞りたい', hint: '体脂肪を落とす目標を設定します' },
-  { value: 'muscle', emoji: '🥩', label: '筋肉をつけたい', hint: '増量と種目重量を目標にします' },
-  { value: 'custom', emoji: '✏️', label: 'その他', hint: '自由に目標を設定します' },
+  { value: 'attractive', emoji: '💪', label: 'モテたい', hint: '映える体型の目安（体脂肪・体重）を参考に表示します' },
+  { value: 'health', emoji: '🏥', label: '健康になりたい', hint: '健康リスクが最小の BMI・体型の目安を表示します' },
+  { value: 'strength', emoji: '🏋️', label: '筋力を上げたい', hint: 'ベンチ等の種目重量（BIG3）の目安を表示します' },
+  { value: 'lose_fat', emoji: '🔥', label: '体を絞りたい', hint: '体脂肪を落とす目安を表示します' },
+  { value: 'muscle', emoji: '🥩', label: '筋肉をつけたい', hint: '増量と種目重量の目安を表示します' },
+  { value: 'custom', emoji: '✏️', label: 'その他', hint: '標準的な目安を表示します' },
 ];
 
 const frequencyOptions: { value: TrainingFrequency; label: string }[] = [
@@ -70,6 +73,51 @@ const liftDefs = [
   { key: 'deadlift', label: 'デッドリフト' },
 ] as const;
 
+// 「目標にする項目」を任意で選ぶためのトグル付きカード。
+function GoalSection({
+  enabled,
+  onToggle,
+  title,
+  recommended,
+  hint,
+  children,
+}: {
+  enabled: boolean;
+  onToggle: () => void;
+  title: string;
+  recommended: boolean;
+  hint: string;
+  children?: ReactNode;
+}) {
+  return (
+    <View
+      className={`rounded-xl border-2 bg-gray-800 p-4 ${
+        enabled ? 'border-orange-500/60' : 'border-gray-700'
+      }`}>
+      <Pressable onPress={onToggle} className="flex-row items-center gap-3">
+        <View
+          className={`h-6 w-6 items-center justify-center rounded-md border-2 ${
+            enabled ? 'border-orange-500 bg-orange-500' : 'border-gray-600'
+          }`}>
+          {enabled && <Check color="#ffffff" size={14} />}
+        </View>
+        <View className="flex-1">
+          <View className="flex-row items-center gap-2">
+            <Text className="font-medium text-white">{title}</Text>
+            {recommended && (
+              <View className="rounded-full bg-orange-500/20 px-2 py-0.5">
+                <Text className="text-[10px] text-orange-400">おすすめ</Text>
+              </View>
+            )}
+          </View>
+          <Text className="mt-0.5 text-xs text-gray-400">{hint}</Text>
+        </View>
+      </Pressable>
+      {enabled && children ? <View className="mt-3">{children}</View> : null}
+    </View>
+  );
+}
+
 export default function OnboardingFlow({ onComplete, onSkip }: Props) {
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(1);
@@ -82,34 +130,57 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
   const [frequency, setFrequency] = useState<TrainingFrequency>('w3_4');
   const [intensity, setIntensity] = useState<TrainingIntensity>('moderate');
   const [environments, setEnvironments] = useState<TrainingEnvironment[]>(['gym']);
-  const [goalDirection, setGoalDirection] = useState<Goal>('maintain');
-  const [lifts, setLifts] = useState<Record<string, string>>({ bench: '', squat: '', deadlift: '' });
 
-  const isLift = motivation === 'strength' || motivation === 'muscle';
-  const recommendedDir: Goal =
-    motivation === 'lose_fat' ? 'cut' : motivation === 'muscle' ? 'bulk' : recommendGoal(weight, height);
+  // 目標体重はスライダーで具体的に設定（未操作なら現在体重）。方向性はここから自動判定する。
+  const [targetWeightInput, setTargetWeightInput] = useState<number | null>(null);
+  // 目標にする項目はユーザーが任意で選ぶ（目的による強制分岐はしない）。
+  const [enableBodyFat, setEnableBodyFat] = useState(false);
+  const [bodyFatTarget, setBodyFatTarget] = useState('');
+  const [enableLift, setEnableLift] = useState(false);
+  const [lifts, setLifts] = useState<Record<string, string>>({ bench: '', squat: '', deadlift: '' });
+  const [enableHabit, setEnableHabit] = useState(false);
+  const [habitPerWeek, setHabitPerWeek] = useState('3');
 
   const age = calcAge(birthDate);
   const bmr = calculateBMR(sex, weight, height, age);
   const tdee = calculateTDEE(bmr, { frequency, intensity });
+
+  const targetWeight = targetWeightInput ?? weight;
+  const goalDirection = directionFromWeights(weight, targetWeight);
+  const weightDiff = targetWeight - weight;
+  const weightMin = Math.max(35, Math.round(weight - 15));
+  const weightMax = Math.round(weight + 15);
+
   const dailyCalorieTarget = calculateDailyCalories(tdee, goalDirection);
   const macros = calculateMacros(dailyCalorieTarget, weight, goalDirection);
-  const targetWeight = calculateTargetWeight(weight, sex, height, goalDirection);
   const meals = suggestMeals(dailyCalorieTarget, goalDirection);
+
+  const body = recommendBodyComposition(motivation, sex);
+  const liftGuide = recommendLiftTargets(weight);
+
+  // 目的に応じた「おすすめ項目」（強制ではなく初期の目印）
+  const recBodyFat = motivation === 'lose_fat' || motivation === 'attractive' || motivation === 'health';
+  const recLift = motivation === 'strength' || motivation === 'muscle';
+  const recHabit = motivation === 'health' || motivation === 'custom';
 
   const toggleEnv = (v: TrainingEnvironment) =>
     setEnvironments((prev) => (prev.includes(v) ? prev.filter((e) => e !== v) : [...prev, v]));
 
   function handleComplete() {
-    const goals: FitnessGoal[] = [];
-    if (isLift) {
+    const goals: FitnessGoal[] = [
+      { id: genId(), kind: 'weight', target: Math.round(targetWeight), unit: 'kg', label: '目標体重' },
+    ];
+    if (enableBodyFat && Number(bodyFatTarget) > 0) {
+      goals.push({ id: genId(), kind: 'bodyfat', target: Number(bodyFatTarget), unit: '%', label: '目標体脂肪率' });
+    }
+    if (enableLift) {
       liftDefs.forEach((l) => {
         const n = Number(lifts[l.key]);
         if (n > 0) goals.push({ id: genId(), kind: 'lift', exercise: l.label, target: n, unit: 'kg', label: l.label });
       });
     }
-    if (motivation !== 'strength') {
-      goals.push({ id: genId(), kind: 'weight', target: targetWeight, unit: 'kg', label: '目標体重' });
+    if (enableHabit && Number(habitPerWeek) > 0) {
+      goals.push({ id: genId(), kind: 'habit', target: Number(habitPerWeek), unit: '回/週', label: 'トレーニング習慣' });
     }
 
     const profile: UserProfile = {
@@ -124,7 +195,8 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
       trainingEnvironments: environments.length > 0 ? environments : ['gym'],
       goalDirection,
       goals,
-      targetWeight,
+      targetWeight: Math.round(targetWeight),
+      targetBodyFat: enableBodyFat && Number(bodyFatTarget) > 0 ? Number(bodyFatTarget) : undefined,
       dailyCalorieTarget,
       macros,
       onboardingCompleted: true,
@@ -160,7 +232,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
         {step === 1 && (
           <View>
             <Text className="mb-2 text-2xl font-bold text-white">目標は何ですか？</Text>
-            <Text className="mb-6 text-gray-400">目的に合わせて、設定する目標の種類が変わります</Text>
+            <Text className="mb-6 text-gray-400">目的に合わせて、参考になる目安を表示します</Text>
             <View className="flex-row flex-wrap gap-3">
               {motivationOptions.map((opt) => {
                 const active = motivation === opt.value;
@@ -189,6 +261,9 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
             {selectedMotivation && (
               <View className="mt-4 rounded-xl border border-orange-500/30 bg-orange-500/5 p-4">
                 <Text className="text-sm text-orange-400">➜ {selectedMotivation.hint}</Text>
+                <Text className="mt-1 text-xs text-gray-400">
+                  ※ 何を目標にするかは後で自由に選べます。目安はあくまで参考です。
+                </Text>
               </View>
             )}
           </View>
@@ -338,64 +413,114 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
           <View>
             <Text className="mb-2 text-2xl font-bold text-white">目標を設定</Text>
             <Text className="mb-6 text-gray-400">
-              {isLift ? '目指す重量と方向性を決めましょう' : '目的に合った体型を目安に設定しましょう'}
+              目安を参考に、自分の目標を決めましょう（目安はあくまで参考です）
             </Text>
 
             <View className="mb-4">
               <BodyComposition motivation={motivation} sex={sex} height={height} currentWeight={weight} />
             </View>
 
-            <Text className="mb-2 text-sm text-gray-400">
-              カロリーの方向性（おすすめ: {goalLabels[recommendedDir]}）
-            </Text>
-            <View className="mb-4 flex-row gap-2">
-              {(['bulk', 'maintain', 'cut'] as Goal[]).map((g) => {
-                const active = goalDirection === g;
-                return (
-                  <Pressable
-                    key={g}
-                    onPress={() => setGoalDirection(g)}
-                    className={`flex-1 rounded-lg border-2 py-2 ${
-                      active ? 'border-orange-500 bg-orange-500/10' : 'border-gray-700'
-                    }`}>
-                    <Text
-                      className={`text-center text-sm font-medium ${active ? 'text-orange-400' : 'text-gray-300'}`}>
-                      {goalLabels[g]}
-                      {recommendedDir === g ? ' ★' : ''}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+            {/* 目標体重スライダー */}
+            <View className="mb-4 rounded-xl bg-gray-800 p-4">
+              <View className="mb-1 flex-row items-end justify-between">
+                <Text className="text-sm text-gray-400">目標体重</Text>
+                <Text className="text-2xl font-bold text-orange-400">{targetWeight.toFixed(1)} kg</Text>
+              </View>
+              <Slider
+                style={{ width: '100%', height: 40 }}
+                minimumValue={weightMin}
+                maximumValue={weightMax}
+                step={0.5}
+                value={targetWeight}
+                onValueChange={(v) => setTargetWeightInput(v)}
+                minimumTrackTintColor={colors.orange500}
+                maximumTrackTintColor={colors.gray700}
+                thumbTintColor={colors.orange400}
+              />
+              <View className="flex-row items-center justify-between">
+                <Text className="text-[10px] text-gray-500">{weightMin}kg</Text>
+                <Text className="text-xs text-gray-300">
+                  現在 {weight}kg ／ {goalLabels[goalDirection]}
+                  {Math.abs(weightDiff) >= 0.5 ? ` ${weightDiff > 0 ? '+' : ''}${weightDiff.toFixed(1)}kg` : ''}
+                </Text>
+                <Text className="text-[10px] text-gray-500">{weightMax}kg</Text>
+              </View>
             </View>
 
-            {isLift && (
-              <View className="mb-4 gap-3 rounded-xl bg-gray-800 p-4">
-                <Text className="text-sm text-gray-400">種目別の目標重量（kg・任意）</Text>
-                {liftDefs.map((l) => (
-                  <View key={l.key} className="flex-row items-center justify-between gap-3">
-                    <Text className="flex-1 text-gray-200">{l.label}</Text>
-                    <TextInput
-                      keyboardType="numeric"
-                      value={lifts[l.key]}
-                      onChangeText={(t) => setLifts((prev) => ({ ...prev, [l.key]: t }))}
-                      placeholder="kg"
-                      placeholderTextColor={placeholderColor}
-                      className="w-24 rounded-lg bg-gray-700 px-3 py-2 text-center text-white"
-                    />
-                  </View>
-                ))}
-              </View>
-            )}
-
-            <View className="rounded-xl bg-gray-800 p-4">
+            {/* カロリー結果 */}
+            <View className="mb-4 rounded-xl bg-gray-800 p-4">
               <Text className="mb-1 text-sm text-gray-400">1日の目標カロリー</Text>
               <Text className="text-3xl font-bold text-orange-400">
                 {dailyCalorieTarget}
                 <Text className="text-lg text-gray-400"> kcal</Text>
               </Text>
               <Text className="mt-1 text-xs text-gray-500">
-                TDEE: {tdee} kcal ・ 目標体重: {targetWeight} kg
+                TDEE: {tdee} kcal ・ 方向性: {goalLabels[goalDirection]}
               </Text>
+            </View>
+
+            {/* 目標にする項目（任意・ユーザーが選ぶ） */}
+            <Text className="mb-2 text-sm text-gray-400">目標にする項目（任意・複数可）</Text>
+            <View className="gap-3">
+              <GoalSection
+                enabled={enableBodyFat}
+                onToggle={() => setEnableBodyFat((v) => !v)}
+                title="体脂肪率"
+                recommended={recBodyFat}
+                hint={`目安: ${body.bodyFatRange[0]}〜${body.bodyFatRange[1]}%`}>
+                <View className="flex-row items-center gap-3">
+                  <Text className="text-gray-200">目標</Text>
+                  <TextInput
+                    keyboardType="numeric"
+                    value={bodyFatTarget}
+                    onChangeText={setBodyFatTarget}
+                    placeholder="%"
+                    placeholderTextColor={placeholderColor}
+                    className="w-24 rounded-lg bg-gray-700 px-3 py-2 text-center text-white"
+                  />
+                </View>
+              </GoalSection>
+
+              <GoalSection
+                enabled={enableLift}
+                onToggle={() => setEnableLift((v) => !v)}
+                title="種目重量（BIG3）"
+                recommended={recLift}
+                hint={`目安: ベンチ${liftGuide.bench} / スクワット${liftGuide.squat} / デッド${liftGuide.deadlift}kg`}>
+                <View className="gap-2">
+                  {liftDefs.map((l) => (
+                    <View key={l.key} className="flex-row items-center justify-between gap-3">
+                      <Text className="flex-1 text-gray-200">{l.label}</Text>
+                      <TextInput
+                        keyboardType="numeric"
+                        value={lifts[l.key]}
+                        onChangeText={(t) => setLifts((prev) => ({ ...prev, [l.key]: t }))}
+                        placeholder="kg"
+                        placeholderTextColor={placeholderColor}
+                        className="w-24 rounded-lg bg-gray-700 px-3 py-2 text-center text-white"
+                      />
+                    </View>
+                  ))}
+                </View>
+              </GoalSection>
+
+              <GoalSection
+                enabled={enableHabit}
+                onToggle={() => setEnableHabit((v) => !v)}
+                title="トレーニング習慣"
+                recommended={recHabit}
+                hint="目安: 週3回継続">
+                <View className="flex-row items-center gap-3">
+                  <Text className="text-gray-200">週</Text>
+                  <TextInput
+                    keyboardType="numeric"
+                    value={habitPerWeek}
+                    onChangeText={setHabitPerWeek}
+                    className="w-20 rounded-lg bg-gray-700 px-3 py-2 text-center text-white"
+                  />
+                  <Text className="text-gray-200">回</Text>
+                </View>
+              </GoalSection>
             </View>
           </View>
         )}
@@ -445,7 +570,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
                 { label: '目的', value: motivationOptions.find((m) => m.value === motivation)?.label ?? '' },
                 { label: '方向性', value: goalLabels[goalDirection] },
                 { label: '現在体重', value: `${weight} kg` },
-                { label: '目標体重', value: `${targetWeight} kg` },
+                { label: '目標体重', value: `${Math.round(targetWeight)} kg` },
                 { label: '1日の目標カロリー', value: `${dailyCalorieTarget} kcal` },
                 { label: 'PFC', value: `${macros.protein} / ${macros.fat} / ${macros.carbs} g` },
                 {
