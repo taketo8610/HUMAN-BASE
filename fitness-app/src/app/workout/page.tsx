@@ -5,6 +5,7 @@ import { format, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { Plus, Trash2, X } from 'lucide-react';
 import { WorkoutSet } from '@/types';
+import WorkoutTimer from '@/components/workout/WorkoutTimer';
 
 export default function WorkoutPage() {
   const { workoutLogs, addWorkoutLog, deleteWorkoutLog } = useAppStore();
@@ -12,6 +13,7 @@ export default function WorkoutPage() {
   const [duration, setDuration] = useState(60);
   const [notes, setNotes] = useState('');
   const [exercises, setExercises] = useState<WorkoutSet[]>([]);
+  const [timerActive, setTimerActive] = useState(false);
 
   const addExercise = () => {
     setExercises([...exercises, { id: crypto.randomUUID(), exercise: '', sets: 3, reps: 10, weight: 0 }]);
@@ -32,9 +34,28 @@ export default function WorkoutPage() {
     setDuration(60);
   };
 
+  const currentExerciseName = exercises.find((e) => e.exercise)?.exercise ?? undefined;
+
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6">ワークアウト記録</h2>
+    <div className={`p-6 max-w-3xl mx-auto ${timerActive ? 'pb-80' : ''}`}>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold">ワークアウト記録</h2>
+        {timerActive ? (
+          <button
+            onClick={() => setTimerActive(false)}
+            className="bg-gray-700 hover:bg-gray-600 text-white text-sm px-4 py-2 rounded-lg"
+          >
+            終了
+          </button>
+        ) : (
+          <button
+            onClick={() => setTimerActive(true)}
+            className="bg-orange-500 hover:bg-orange-600 text-white text-sm px-4 py-2 rounded-lg font-medium"
+          >
+            トレーニング開始
+          </button>
+        )}
+      </div>
 
       <form onSubmit={handleSubmit} className="bg-gray-800 rounded-xl p-6 mb-8 space-y-4">
         <div className="grid grid-cols-2 gap-4">
@@ -117,6 +138,8 @@ export default function WorkoutPage() {
         ))}
         {workoutLogs.length === 0 && <p className="text-gray-500 text-center py-8">記録がありません</p>}
       </div>
+
+      {timerActive && <WorkoutTimer exerciseName={currentExerciseName} />}
     </div>
   );
 }

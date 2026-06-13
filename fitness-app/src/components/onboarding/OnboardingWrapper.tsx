@@ -11,7 +11,7 @@ export default function OnboardingWrapper({ children }: { children: React.ReactN
     setUserProfile(profile);
   }
 
-  if (!userProfile) {
+  if (!userProfile || !userProfile.onboardingCompleted) {
     return (
       <>
         {children}
