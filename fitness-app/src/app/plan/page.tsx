@@ -2,13 +2,13 @@
 
 import { useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import { TrainingPlan, TrainingDay, PlannedExercise } from '@/types';
+import { TrainingPlan, TrainingDay, PlannedExercise, DayOfWeek } from '@/types';
 import { format } from 'date-fns';
 import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 
 const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
 
-const emptyExercise = (): PlannedExercise => ({ name: '', sets: 3, reps: 10, weight: undefined });
+const emptyExercise = (): PlannedExercise => ({ id: crypto.randomUUID(), name: '', sets: 3, reps: 10, weight: undefined });
 
 export default function PlanPage() {
   const { trainingPlans, addTrainingPlan, deleteTrainingPlan } = useAppStore();
@@ -20,14 +20,14 @@ export default function PlanPage() {
 
   const addDay = () => {
     const usedDays = days.map((d) => d.dayOfWeek);
-    const nextDay = [1, 2, 3, 4, 5, 6, 0].find((d) => !usedDays.includes(d)) ?? 0;
+    const nextDay = ([1, 2, 3, 4, 5, 6, 0] as DayOfWeek[]).find((d) => !usedDays.includes(d)) ?? 0 as DayOfWeek;
     setDays([...days, { dayOfWeek: nextDay, exercises: [emptyExercise()] }]);
   };
 
   const removeDay = (index: number) => setDays(days.filter((_, i) => i !== index));
 
   const updateDayOfWeek = (index: number, dow: number) =>
-    setDays(days.map((d, i) => (i === index ? { ...d, dayOfWeek: dow } : d)));
+    setDays(days.map((d, i) => (i === index ? { ...d, dayOfWeek: dow as DayOfWeek } : d)));
 
   const addExToDay = (dayIndex: number) =>
     setDays(days.map((d, i) => i === dayIndex ? { ...d, exercises: [...d.exercises, emptyExercise()] } : d));
