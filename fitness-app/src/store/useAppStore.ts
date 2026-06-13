@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WorkoutLog, MealEntry, BodyRecord, TrainingPlan, UserProfile } from '@/types';
 
 interface AppState {
@@ -8,6 +9,8 @@ interface AppState {
   bodyRecords: BodyRecord[];
   trainingPlans: TrainingPlan[];
   userProfile: UserProfile | null;
+  // 永続化ストレージからの読み込み完了フラグ（初回オンボーディング判定のチラつき防止に使う）
+  _hasHydrated: boolean;
 
   addWorkoutLog: (log: WorkoutLog) => void;
   deleteWorkoutLog: (id: string) => void;
@@ -33,6 +36,7 @@ export const useAppStore = create<AppState>()(
       bodyRecords: [],
       trainingPlans: [],
       userProfile: null,
+      _hasHydrated: false,
 
       addWorkoutLog: (log) => set((s) => ({ workoutLogs: [log, ...s.workoutLogs] })),
       deleteWorkoutLog: (id) => set((s) => ({ workoutLogs: s.workoutLogs.filter((l) => l.id !== id) })),
@@ -64,6 +68,12 @@ export const useAppStore = create<AppState>()(
           },
         }),
     }),
-    { name: 'fitness-app-storage' }
+    {
+      name: 'fitness-app-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => (state) => {
+        if (state) state._hasHydrated = true;
+      },
+    }
   )
 );

@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FitTracker 💪
 
-## Getting Started
+筋トレ・体づくりをサポートするパーソナライズアプリ。
+**Expo (React Native)** 製で、iOS / Android / Web を 1 つのコードベースで動かす。
 
-First, run the development server:
+## 主な機能
+
+- **ダッシュボード** — 今日のサマリー、7日間の体重グラフ、最近のワークアウト
+- **ワークアウト記録** — 種目・セット・重量・回数の記録、休憩タイマー（経過時間ストップウォッチ付き）
+- **食事管理** — カロリー・PFC マクロの記録と今日の合計
+- **体型トラッキング** — 体重・体脂肪率・筋肉量の記録と 30 日グラフ
+- **トレーニングプラン** — 曜日別の週間メニュー作成
+- **オンボーディング** — 目標・基本情報・活動量から TDEE と目標カロリーを算出
+
+## 技術スタック
+
+| 領域 | 採用技術 |
+|---|---|
+| Framework | Expo SDK 56 + expo-router（React Native 0.85 / React 19） |
+| 言語 | TypeScript |
+| スタイル | NativeWind（Tailwind CSS、ダークテーマ） |
+| 状態管理 / 永続化 | Zustand + AsyncStorage |
+| グラフ | react-native-svg（自作 LineChart） |
+| アイコン | lucide-react-native |
+
+## セットアップ
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npx expo start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+起動後、ターミナルで:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `w` … PC のブラウザで開く（Web）
+- `a` … Android エミュレータ / 接続デバイス
+- `i` … iOS シミュレータ（macOS）
+- スマホ実機 … [Expo Go](https://expo.dev/go) アプリで QR コードを読み取り
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Web 配信
 
-## Learn More
+```bash
+npx expo export -p web   # dist/ に静的書き出し（Cloudflare Pages などに配信可能）
+```
 
-To learn more about Next.js, take a look at the following resources:
+## ディレクトリ
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+ファイルベースルーティング（`src/app`）。詳細は [CLAUDE.md](./CLAUDE.md) を参照。
