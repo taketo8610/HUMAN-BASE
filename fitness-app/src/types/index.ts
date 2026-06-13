@@ -1,22 +1,21 @@
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
 export interface WorkoutSet {
   id: string;
   exercise: string;
   sets: number;
   reps: number;
   weight: number;
-  date: string;
-  notes?: string;
 }
 
 export interface WorkoutLog {
   id: string;
-  date: string;
+  date: string; // ISO date string
   exercises: WorkoutSet[];
-  duration: number;
-  notes?: string;
+  duration: number; // minutes
+  notes: string;
 }
-
-export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
 export interface MealEntry {
   id: string;
@@ -35,10 +34,11 @@ export interface BodyRecord {
   weight: number;
   bodyFatPercentage?: number;
   muscleMass?: number;
-  notes?: string;
+  notes: string;
 }
 
 export interface PlannedExercise {
+  id: string;
   name: string;
   sets: number;
   reps: number;
@@ -46,7 +46,7 @@ export interface PlannedExercise {
 }
 
 export interface TrainingDay {
-  dayOfWeek: number;
+  dayOfWeek: DayOfWeek;
   exercises: PlannedExercise[];
 }
 

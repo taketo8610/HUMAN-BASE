@@ -9,19 +9,15 @@ interface AppState {
   trainingPlans: TrainingPlan[];
 
   addWorkoutLog: (log: WorkoutLog) => void;
-  updateWorkoutLog: (id: string, log: Partial<WorkoutLog>) => void;
   deleteWorkoutLog: (id: string) => void;
 
   addMealEntry: (entry: MealEntry) => void;
-  updateMealEntry: (id: string, entry: Partial<MealEntry>) => void;
   deleteMealEntry: (id: string) => void;
 
   addBodyRecord: (record: BodyRecord) => void;
-  updateBodyRecord: (id: string, record: Partial<BodyRecord>) => void;
   deleteBodyRecord: (id: string) => void;
 
   addTrainingPlan: (plan: TrainingPlan) => void;
-  updateTrainingPlan: (id: string, plan: Partial<TrainingPlan>) => void;
   deleteTrainingPlan: (id: string) => void;
 }
 
@@ -33,40 +29,18 @@ export const useAppStore = create<AppState>()(
       bodyRecords: [],
       trainingPlans: [],
 
-      addWorkoutLog: (log) => set((state) => ({ workoutLogs: [...state.workoutLogs, log] })),
-      updateWorkoutLog: (id, log) =>
-        set((state) => ({
-          workoutLogs: state.workoutLogs.map((l) => (l.id === id ? { ...l, ...log } : l)),
-        })),
-      deleteWorkoutLog: (id) =>
-        set((state) => ({ workoutLogs: state.workoutLogs.filter((l) => l.id !== id) })),
+      addWorkoutLog: (log) => set((s) => ({ workoutLogs: [log, ...s.workoutLogs] })),
+      deleteWorkoutLog: (id) => set((s) => ({ workoutLogs: s.workoutLogs.filter((l) => l.id !== id) })),
 
-      addMealEntry: (entry) => set((state) => ({ mealEntries: [...state.mealEntries, entry] })),
-      updateMealEntry: (id, entry) =>
-        set((state) => ({
-          mealEntries: state.mealEntries.map((e) => (e.id === id ? { ...e, ...entry } : e)),
-        })),
-      deleteMealEntry: (id) =>
-        set((state) => ({ mealEntries: state.mealEntries.filter((e) => e.id !== id) })),
+      addMealEntry: (entry) => set((s) => ({ mealEntries: [entry, ...s.mealEntries] })),
+      deleteMealEntry: (id) => set((s) => ({ mealEntries: s.mealEntries.filter((e) => e.id !== id) })),
 
-      addBodyRecord: (record) => set((state) => ({ bodyRecords: [...state.bodyRecords, record] })),
-      updateBodyRecord: (id, record) =>
-        set((state) => ({
-          bodyRecords: state.bodyRecords.map((r) => (r.id === id ? { ...r, ...record } : r)),
-        })),
-      deleteBodyRecord: (id) =>
-        set((state) => ({ bodyRecords: state.bodyRecords.filter((r) => r.id !== id) })),
+      addBodyRecord: (record) => set((s) => ({ bodyRecords: [record, ...s.bodyRecords] })),
+      deleteBodyRecord: (id) => set((s) => ({ bodyRecords: s.bodyRecords.filter((r) => r.id !== id) })),
 
-      addTrainingPlan: (plan) => set((state) => ({ trainingPlans: [...state.trainingPlans, plan] })),
-      updateTrainingPlan: (id, plan) =>
-        set((state) => ({
-          trainingPlans: state.trainingPlans.map((p) => (p.id === id ? { ...p, ...plan } : p)),
-        })),
-      deleteTrainingPlan: (id) =>
-        set((state) => ({ trainingPlans: state.trainingPlans.filter((p) => p.id !== id) })),
+      addTrainingPlan: (plan) => set((s) => ({ trainingPlans: [plan, ...s.trainingPlans] })),
+      deleteTrainingPlan: (id) => set((s) => ({ trainingPlans: s.trainingPlans.filter((p) => p.id !== id) })),
     }),
-    {
-      name: 'fitness-app-storage',
-    }
+    { name: 'fitness-app-storage' }
   )
 );
