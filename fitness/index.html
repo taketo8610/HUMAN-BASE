@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="style.css" />
+    <title>MUSCLE BASE - 筋トレ・体づくりサポート</title>
+  </head>
+
+  <body>
+    <header>
+      <h1 class="heading">
+        <a href="index.html">MUSCLE BASE</a>
+      </h1>
+      <p class="tagline">筋トレ・体づくりサポート</p>
+    </header>
+
+    <nav>
+      <ul class="nav-list">
+        <li class="nav-list-item"><a href="#calc">体組成計算</a></li>
+        <li class="nav-list-item"><a href="#menu">トレーニング</a></li>
+        <li class="nav-list-item"><a href="#log">記録</a></li>
+      </ul>
+    </nav>
+
+    <main class="main">
+      <!-- 体組成・栄養計算 -->
+      <section id="calc" class="card">
+        <h2 class="card-title">体組成・栄養計算</h2>
+        <p class="card-lead">身長・体重・目標を入力すると、BMIと1日の目安カロリー・タンパク質を計算します。</p>
+        <div class="form-grid">
+          <label class="field">
+            身長 (cm)
+            <input type="number" id="height" placeholder="170" />
+          </label>
+          <label class="field">
+            体重 (kg)
+            <input type="number" id="weight" placeholder="65" />
+          </label>
+          <label class="field">
+            年齢
+            <input type="number" id="age" placeholder="30" />
+          </label>
+          <label class="field">
+            性別
+            <select id="gender">
+              <option value="male">男性</option>
+              <option value="female">女性</option>
+            </select>
+          </label>
+          <label class="field">
+            活動量
+            <select id="activity">
+              <option value="1.2">ほぼ運動なし</option>
+              <option value="1.375">週1〜2回</option>
+              <option value="1.55" selected>週3〜5回</option>
+              <option value="1.725">週6〜7回</option>
+            </select>
+          </label>
+          <label class="field">
+            目標
+            <select id="goal">
+              <option value="bulk">増量（筋肥大）</option>
+              <option value="maintain" selected>維持</option>
+              <option value="cut">減量（引き締め）</option>
+            </select>
+          </label>
+        </div>
+        <button class="btn" id="calc-btn">計算する</button>
+        <div class="result" id="calc-result" hidden></div>
+      </section>
+
+      <!-- トレーニングメニュー -->
+      <section id="menu" class="card">
+        <h2 class="card-title">部位別トレーニングメニュー</h2>
+        <p class="card-lead">初心者〜中級者向けの基本種目です。フォーム重視で無理のない重量から始めましょう。</p>
+        <div class="menu-grid">
+          <div class="menu-item">
+            <h3>胸</h3>
+            <ul>
+              <li>ベンチプレス 3×8〜10</li>
+              <li>ダンベルフライ 3×12</li>
+              <li>腕立て伏せ 3×限界</li>
+            </ul>
+          </div>
+          <div class="menu-item">
+            <h3>背中</h3>
+            <ul>
+              <li>懸垂 / ラットプル 3×8〜10</li>
+              <li>ベントオーバーロウ 3×10</li>
+              <li>デッドリフト 3×6〜8</li>
+            </ul>
+          </div>
+          <div class="menu-item">
+            <h3>脚</h3>
+            <ul>
+              <li>スクワット 3×8〜10</li>
+              <li>レッグプレス 3×12</li>
+              <li>カーフレイズ 3×15</li>
+            </ul>
+          </div>
+          <div class="menu-item">
+            <h3>肩・腕</h3>
+            <ul>
+              <li>ショルダープレス 3×10</li>
+              <li>サイドレイズ 3×15</li>
+              <li>アームカール 3×12</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- トレーニング記録 -->
+      <section id="log" class="card">
+        <h2 class="card-title">トレーニング記録</h2>
+        <p class="card-lead">種目・重量・回数を記録して継続を可視化しましょう。（ブラウザに保存されます）</p>
+        <div class="form-grid">
+          <label class="field">
+            種目
+            <input type="text" id="log-exercise" placeholder="ベンチプレス" />
+          </label>
+          <label class="field">
+            重量 (kg)
+            <input type="number" id="log-weight" placeholder="60" />
+          </label>
+          <label class="field">
+            回数
+            <input type="number" id="log-reps" placeholder="10" />
+          </label>
+          <label class="field">
+            セット
+            <input type="number" id="log-sets" placeholder="3" />
+          </label>
+        </div>
+        <button class="btn" id="log-btn">記録を追加</button>
+        <table class="log-table">
+          <thead>
+            <tr>
+              <th>日付</th>
+              <th>種目</th>
+              <th>重量</th>
+              <th>回数</th>
+              <th>セット</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="log-body"></tbody>
+        </table>
+        <p class="empty" id="log-empty">まだ記録がありません。</p>
+      </section>
+    </main>
+
+    <footer>
+      <p class="footer-text">© MUSCLE BASE - Train hard, stay consistent.</p>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>
