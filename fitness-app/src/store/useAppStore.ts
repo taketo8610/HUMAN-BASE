@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { WorkoutLog, MealEntry, BodyRecord, TrainingPlan } from '@/types';
+import { WorkoutLog, MealEntry, BodyRecord, TrainingPlan, UserProfile } from '@/types';
 
 interface AppState {
   workoutLogs: WorkoutLog[];
   mealEntries: MealEntry[];
   bodyRecords: BodyRecord[];
   trainingPlans: TrainingPlan[];
+  userProfile: UserProfile | null;
 
   addWorkoutLog: (log: WorkoutLog) => void;
   deleteWorkoutLog: (id: string) => void;
@@ -19,6 +20,9 @@ interface AppState {
 
   addTrainingPlan: (plan: TrainingPlan) => void;
   deleteTrainingPlan: (id: string) => void;
+
+  setUserProfile: (profile: UserProfile) => void;
+  skipOnboarding: () => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -28,6 +32,7 @@ export const useAppStore = create<AppState>()(
       mealEntries: [],
       bodyRecords: [],
       trainingPlans: [],
+      userProfile: null,
 
       addWorkoutLog: (log) => set((s) => ({ workoutLogs: [log, ...s.workoutLogs] })),
       deleteWorkoutLog: (id) => set((s) => ({ workoutLogs: s.workoutLogs.filter((l) => l.id !== id) })),
@@ -40,6 +45,24 @@ export const useAppStore = create<AppState>()(
 
       addTrainingPlan: (plan) => set((s) => ({ trainingPlans: [plan, ...s.trainingPlans] })),
       deleteTrainingPlan: (id) => set((s) => ({ trainingPlans: s.trainingPlans.filter((p) => p.id !== id) })),
+
+      setUserProfile: (profile) => set({ userProfile: profile }),
+      skipOnboarding: () =>
+        set({
+          userProfile: {
+            motivation: 'health',
+            sex: 'male',
+            age: 30,
+            height: 170,
+            weight: 70,
+            activityLevel: 'moderate',
+            trainingEnvironment: 'gym',
+            targetWeight: 70,
+            dailyCalorieTarget: 2000,
+            goal: 'maintain',
+            onboardingCompleted: true,
+          },
+        }),
     }),
     { name: 'fitness-app-storage' }
   )

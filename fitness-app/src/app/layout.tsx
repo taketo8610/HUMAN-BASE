@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import Sidebar from '@/components/layout/Sidebar';
+import OnboardingWrapper from '@/components/onboarding/OnboardingWrapper';
 
 export const metadata: Metadata = {
   title: 'FitTracker - 筋トレ・体づくりサポート',
@@ -12,7 +13,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ja">
       <body className="bg-gray-950 text-white flex">
         <Sidebar />
-        <main className="flex-1 overflow-auto">{children}</main>
+        <main className="flex-1 overflow-auto">
+          <OnboardingWrapper>{children}</OnboardingWrapper>
+        </main>
       </body>
     </html>
   );
