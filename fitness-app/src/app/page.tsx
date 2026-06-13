@@ -6,7 +6,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { Dumbbell, Flame, Scale } from 'lucide-react';
 
 export default function Dashboard() {
-  const { workoutLogs, mealEntries, bodyRecords } = useAppStore();
+  const { workoutLogs, mealEntries, bodyRecords, userProfile } = useAppStore();
 
   const todayWorkout = workoutLogs.filter((l) => isToday(parseISO(l.date)));
   const todayMeals = mealEntries.filter((e) => isToday(parseISO(e.date)));
@@ -22,10 +22,39 @@ export default function Dashboard() {
 
   const recentLogs = workoutLogs.slice(0, 3);
 
+
+  const goalLabel: Record<string, string> = { bulk: '増量', cut: '減量', maintain: '維持' };
+  const motivationMessages: Record<string, string> = {
+    attractive: 'モテボディを目指して頑張りましょう！',
+    health: '健康的な体づくりを続けましょう！',
+    strength: '筋力アップを目指して頑張りましょう！',
+    lose_fat: '体を絞って理想の体型へ！',
+    muscle: '筋肉をつけて理想のボディへ！',
+    custom: '目標に向かって頑張りましょう！',
+  };
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <h2 className="text-2xl font-bold mb-6">ダッシュボード</h2>
       <p className="text-gray-400 mb-6">{format(new Date(), 'yyyy年M月d日(E)', { locale: ja })}</p>
+
+      {userProfile && (
+        <div className="bg-gray-800 border border-orange-500/30 rounded-xl p-4 mb-6 flex items-center justify-between">
+          <div>
+            <p className="text-orange-400 font-bold text-lg">
+              こんにちは！目標: {goalLabel[userProfile.goal] ?? userProfile.goal}
+            </p>
+            <p className="text-gray-400 text-sm mt-1">
+              {motivationMessages[userProfile.motivation] ?? 'トレーニングを頑張りましょう！'}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-white font-bold text-xl">{userProfile.dailyCalorieTarget} kcal</p>
+            <p className="text-gray-400 text-xs">1日の目標カロリー</p>
+          </div>
+        </div>
+      )}
+
 
       <div className="grid grid-cols-3 gap-4 mb-8">
         <div className="bg-gray-800 rounded-xl p-4 flex items-center gap-4">
