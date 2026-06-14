@@ -3,18 +3,32 @@
 # FitTracker — プロジェクト概要
 
 筋トレ・体づくりをサポートするパーソナライズアプリ。
+スマホアプリ（iOS/Android）を主軸に、同一コードベースで Web でも動作する。
 モチベーション維持と個別最適化を軸に、将来的にビジネス化を目指す。
 
 ## 技術スタック
 
-- **Framework**: Next.js 16 (App Router) + TypeScript
-- **Styling**: Tailwind CSS（ダークテーマ、オレンジアクセント）
-- **State / 永続化**: Zustand + localStorage (persist middleware)
-- **グラフ**: Recharts
-- **アイコン**: Lucide React
+- **Framework**: Expo SDK 56 + expo-router（React Native 0.85 / React 19、TypeScript）
+- **Styling**: NativeWind（Tailwind CSS）— ダークテーマ、オレンジアクセント
+- **State / 永続化**: Zustand + AsyncStorage（persist middleware）
+- **グラフ**: react-native-svg による自作 `LineChart`
+- **アイコン**: lucide-react-native
 - **日付**: date-fns（ja ロケール）
 
-バックエンド・DBは現状なし（Phase 2 以降で Supabase 導入予定）。
+iOS / Android / Web を 1 コードベースで提供する。バックエンド・DBは現状なし（Phase 2 以降で Supabase 導入予定）。
+
+> 旧構成は Next.js（Web のみ）だったが、スマホアプリ化のため Expo (React Native) へ移行した。
+> ビジネスロジック（`src/lib`・`src/store`・`src/types`）はプラットフォーム非依存で移植している。
+
+## 起動方法
+
+```bash
+npm install
+npx expo start        # w=Web(PCブラウザ), a=Android, i=iOS。実機は Expo Go アプリで QR 読み取り
+```
+
+- Web 静的書き出し: `npx expo export -p web` → `dist/`（Cloudflare Pages などに配信可能）
+- 型チェック: `npx tsc --noEmit`
 
 ## 現在の実装状況（Phase 1 進行中）
 
@@ -29,16 +43,16 @@
 - [x] TDEE 計算・目標カロリー算出 (`src/lib/fitness.ts`)
 
 ### Phase 1 残タスク（UIを磨く）
-- [ ] スマホ対応（レスポンシブレイアウト）— サイドバーをモバイルではボトムナビに変更
 - [ ] ダッシュボード強化 — オンボーディング結果を活かした目標カロリー進捗表示
 - [ ] トレーニングメニュー自動提案 — 運動環境・目標に基づく推奨メニュー生成
 - [ ] オンボーディング再設定 — プロフィール画面から変更できるUI
+- [ ] 日付入力の改善 — ネイティブ DatePicker の導入
 - [ ] ビジュアル全体磨き — カード・グラフ・フォームのデザイン改善
 
 ## フェーズ計画
 
 ### Phase 1 — ローカル完結（現在）
-UIを磨く。サーバーなし、localStorage のみ。
+UIを磨く。サーバーなし、AsyncStorage のみ。
 
 ### Phase 2 — Supabase 導入
 - ユーザー認証（メール / Google）
@@ -48,7 +62,7 @@ UIを磨く。サーバーなし、localStorage のみ。
 ### Phase 3 — 収益化
 - プロモーション枠（ジム・プロテイン・食事宅配サービスの広告）
 - サブスクリプション（Stripe 連携、プレミアム機能）
-- スマート体重計連携（eufy / Withings 等の API）
+- スマート体重計連携（eufy / Withings 等の API。ネイティブ専用機能は Web では無効化して分岐）
 
 ## 要件・設計方針
 
@@ -75,22 +89,26 @@ UIを磨く。サーバーなし、localStorage のみ。
 ```
 src/
   app/
-    page.tsx          # ダッシュボード
-    workout/page.tsx  # ワークアウト記録 + タイマー
-    meal/page.tsx     # 食事管理
-    body/page.tsx     # 体型トラッキング
-    plan/page.tsx     # トレーニングプラン
+    _layout.tsx          # ルート（Stack + OnboardingGate + テーマ/SafeArea）
+    (tabs)/
+      _layout.tsx        # タブナビ（5タブ・ダークテーマ）
+      index.tsx          # ダッシュボード
+      workout.tsx        # ワークアウト記録 + タイマー
+      meal.tsx           # 食事管理
+      body.tsx           # 体型トラッキング
+      plan.tsx           # トレーニングプラン
   components/
-    layout/Sidebar.tsx
-    onboarding/
-      OnboardingFlow.tsx
-      OnboardingWrapper.tsx
-    workout/
-      WorkoutTimer.tsx
+    OnboardingGate.tsx   # オンボーディング表示制御（hydration 後に判定）
+    OnboardingFlow.tsx   # オンボーディング 6 ステップ
+    WorkoutTimer.tsx     # 休憩カウントダウン + 経過ストップウォッチ
+    LineChart.tsx        # react-native-svg の軽量折れ線グラフ
+    ui.tsx               # Card / Field / PrimaryButton / EmptyState
   lib/
-    fitness.ts        # TDEE・BMR・目標カロリー計算
+    fitness.ts           # TDEE・BMR・目標カロリー計算
+    id.ts                # レコード用 ID 生成（crypto.randomUUID の代替）
+    colors.ts            # JS で色値が必要な箇所（ナビ・グラフ）の定数
   store/
-    useAppStore.ts    # Zustand store（全データ + userProfile）
+    useAppStore.ts       # Zustand store（全データ + userProfile、AsyncStorage 永続化）
   types/
-    index.ts          # 全型定義
+    index.ts             # 全型定義
 ```

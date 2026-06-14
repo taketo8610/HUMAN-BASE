@@ -1,25 +1,56 @@
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export type Motivation = 'attractive' | 'health' | 'strength' | 'lose_fat' | 'muscle' | 'custom';
-export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
 export type TrainingEnvironment = 'gym' | 'bodyweight' | 'home_equipment';
 export type Sex = 'male' | 'female';
 export type Goal = 'bulk' | 'cut' | 'maintain';
+
+// 活動量は「頻度」と「1回あたりの強度」に分離する。
+// （週1-2回でもジムでハード、という人を表現できるようにするため）
+export type TrainingFrequency = 'none' | 'w1_2' | 'w3_4' | 'w5_6' | 'daily';
+export type TrainingIntensity = 'light' | 'moderate' | 'hard';
+
+export interface ActivityInput {
+  frequency: TrainingFrequency;
+  intensity: TrainingIntensity;
+}
+
+// パーソナライズ目標。目的に応じて種類を出し分ける。
+export type GoalKind = 'weight' | 'bodyfat' | 'lift' | 'habit';
+export interface FitnessGoal {
+  id: string;
+  kind: GoalKind;
+  exercise?: string; // lift（種目重量）の種目名
+  target: number;
+  unit: string; // 'kg' | '%' | '回/週'
+  label: string; // 表示名（例: ベンチプレス）
+}
+
+export interface Macros {
+  protein: number; // g
+  fat: number; // g
+  carbs: number; // g
+}
 
 export interface UserProfile {
   motivation: Motivation;
   motivationCustom?: string;
   sex: Sex;
-  age: number;
+  birthDate: string; // ISO 'yyyy-MM-dd'（年齢は都度計算する）
   height: number; // cm
   weight: number; // kg
-  activityLevel: ActivityLevel;
-  trainingEnvironment: TrainingEnvironment;
+  trainingFrequency: TrainingFrequency;
+  trainingIntensity: TrainingIntensity;
+  trainingEnvironments: TrainingEnvironment[]; // 複数選択可
+  goalDirection: Goal; // カロリー計算用（増量/維持/減量）
+  goals: FitnessGoal[]; // パーソナライズ目標（複数可）
   targetWeight: number; // kg
+  targetWeeks?: number; // 目標達成までの週数
   targetBodyFat?: number; // %
   dailyCalorieTarget: number; // kcal
-  goal: Goal;
+  macros: Macros;
   onboardingCompleted: boolean;
 }
+
 export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 export interface WorkoutSet {
