@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { View, Text, Pressable } from 'react-native';
+import { type LucideIcon } from 'lucide-react-native';
 
 import { colors } from '@/lib/colors';
 
@@ -39,6 +40,20 @@ export function PrimaryButton({
   );
 }
 
-export function EmptyState({ text }: { text: string }) {
-  return <Text className="py-8 text-center text-gray-500">{text}</Text>;
+export function EmptyState({
+  icon: Icon,
+  text,
+  hint,
+}: {
+  icon?: LucideIcon;
+  text: string;
+  hint?: string;
+}) {
+  return (
+    <View className="items-center gap-2 py-10">
+      {Icon ? <Icon color={colors.gray600} size={30} /> : null}
+      <Text className="text-center text-gray-500">{text}</Text>
+      {hint ? <Text className="text-center text-xs text-gray-600">{hint}</Text> : null}
+    </View>
+  );
 }

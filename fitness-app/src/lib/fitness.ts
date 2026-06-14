@@ -282,3 +282,21 @@ export function planCalories(
     warning,
   };
 }
+
+// 目標体重までの到達見込み週数（計画ペース基準）。
+// 達成済み・方向不一致は 0、期間や差が無効なら null を返す。
+export function etaToTargetWeight(
+  currentWeight: number,
+  startWeight: number,
+  targetWeight: number,
+  targetWeeks?: number
+): number | null {
+  if (!targetWeeks || targetWeeks <= 0) return null;
+  const total = targetWeight - startWeight;
+  if (Math.abs(total) < 0.5) return null;
+  const weeklyPace = total / targetWeeks;
+  const remaining = targetWeight - currentWeight;
+  if (Math.abs(remaining) < 0.3) return 0;
+  if (Math.sign(remaining) !== Math.sign(weeklyPace)) return 0;
+  return Math.ceil(remaining / weeklyPace);
+}

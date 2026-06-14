@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView } from 'react-native';
 import { format, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { Plus, Trash2, X } from 'lucide-react-native';
+import { Plus, Trash2, X, Dumbbell } from 'lucide-react-native';
 
 import { useAppStore } from '@/store/useAppStore';
 import { WorkoutSet } from '@/types';
 import { genId } from '@/lib/id';
 import { colors } from '@/lib/colors';
+import { PRESET_EXERCISES } from '@/lib/exercises';
 import { Card, Field, PrimaryButton, EmptyState, inputClass, placeholderColor } from '@/components/ui';
 import WorkoutTimer from '@/components/WorkoutTimer';
 
@@ -19,8 +20,20 @@ export default function WorkoutScreen() {
   const [exercises, setExercises] = useState<WorkoutSet[]>([]);
   const [timerActive, setTimerActive] = useState(false);
 
-  const addExercise = () =>
-    setExercises((prev) => [...prev, { id: genId(), exercise: '', sets: 3, reps: 10, weight: 0 }]);
+  // 過去に記録した種目を頻度順に並べ、プリセットと合わせてサジェスト候補にする。
+  const suggestions = useMemo(() => {
+    const count = new Map<string, number>();
+    for (const log of workoutLogs) {
+      for (const ex of log.exercises) {
+        if (ex.exercise) count.set(ex.exercise, (count.get(ex.exercise) ?? 0) + 1);
+      }
+    }
+    const past = [...count.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n);
+    return [...new Set([...past, ...PRESET_EXERCISES])].slice(0, 10);
+  }, [workoutLogs]);
+
+  const addExercise = (name = '') =>
+    setExercises((prev) => [...prev, { id: genId(), exercise: name, sets: 3, reps: 10, weight: 0 }]);
 
   const updateExercise = (id: string, field: keyof WorkoutSet, value: string | number) =>
     setExercises((prev) => prev.map((e) => (e.id === id ? { ...e, [field]: value } : e)));
@@ -84,12 +97,26 @@ export default function WorkoutScreen() {
               <View className="mb-2 flex-row items-center justify-between">
                 <Text className="text-sm text-gray-400">種目</Text>
                 <Pressable
-                  onPress={addExercise}
+                  onPress={() => addExercise()}
                   className="flex-row items-center gap-1 rounded-lg bg-orange-500 px-3 py-1">
                   <Plus color="#ffffff" size={12} />
                   <Text className="text-xs text-white">追加</Text>
                 </Pressable>
               </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8 }}
+                className="mb-2">
+                {suggestions.map((name) => (
+                  <Pressable
+                    key={name}
+                    onPress={() => addExercise(name)}
+                    className="rounded-full bg-gray-700 px-3 py-1 active:bg-gray-600">
+                    <Text className="text-xs text-gray-200">＋ {name}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
               {exercises.map((ex) => (
                 <View key={ex.id} className="mb-2 gap-2 rounded-lg bg-gray-700 p-3">
                   <TextInput
@@ -163,7 +190,10 @@ export default function WorkoutScreen() {
                     {log.exercises.length}種目 · {log.duration}分
                   </Text>
                 </View>
-                <Pressable onPress={() => deleteWorkoutLog(log.id)}>
+                <Pressable
+                  onPress={() => deleteWorkoutLog(log.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel="この記録を削除">
                   <Trash2 color={colors.gray500} size={16} />
                 </Pressable>
               </View>
@@ -179,7 +209,13 @@ export default function WorkoutScreen() {
               </View>
             </View>
           ))}
-          {workoutLogs.length === 0 && <EmptyState text="記録がありません" />}
+          {workoutLogs.length === 0 && (
+            <EmptyState
+              icon={Dumbbell}
+              text="まだ記録がありません"
+              hint="上の「種目」から今日のトレーニングを記録しましょう"
+            />
+          )}
         </View>
       </ScrollView>
 

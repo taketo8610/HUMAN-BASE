@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView } from 'react-native';
 import { format, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { Plus, Trash2, X, Sparkles } from 'lucide-react-native';
+import { Plus, Trash2, X, Sparkles, CalendarDays } from 'lucide-react-native';
 
 import { useAppStore } from '@/store/useAppStore';
 import { PlannedExercise, TrainingDay, DayOfWeek } from '@/types';
@@ -234,7 +234,10 @@ export default function PlanScreen() {
                   {format(parseISO(plan.createdAt), 'yyyy年M月d日作成', { locale: ja })}
                 </Text>
               </View>
-              <Pressable onPress={() => deleteTrainingPlan(plan.id)}>
+              <Pressable
+                onPress={() => deleteTrainingPlan(plan.id)}
+                accessibilityRole="button"
+                accessibilityLabel="このプランを削除">
                 <Trash2 color={colors.gray500} size={16} />
               </Pressable>
             </View>
@@ -251,7 +254,13 @@ export default function PlanScreen() {
             </View>
           </View>
         ))}
-        {trainingPlans.length === 0 && <EmptyState text="プランがありません" />}
+        {trainingPlans.length === 0 && (
+          <EmptyState
+            icon={CalendarDays}
+            text="プランがありません"
+            hint="「自動生成」かフォームから作成できます"
+          />
+        )}
       </View>
     </ScrollView>
   );

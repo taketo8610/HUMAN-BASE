@@ -4,7 +4,7 @@ import { Stack, useRouter } from 'expo-router';
 import Slider from '@react-native-community/slider';
 
 import { useAppStore } from '@/store/useAppStore';
-import { TrainingFrequency, TrainingIntensity } from '@/types';
+import { TrainingFrequency, TrainingIntensity, Motivation, Sex, TrainingEnvironment } from '@/types';
 import {
   calcAge,
   calculateBMR,
@@ -29,6 +29,19 @@ const intOpts: { value: TrainingIntensity; label: string }[] = [
   { value: 'moderate', label: '普通' },
   { value: 'hard', label: 'ハード' },
 ];
+const motivationOpts: { value: Motivation; label: string }[] = [
+  { value: 'attractive', label: 'モテたい' },
+  { value: 'health', label: '健康' },
+  { value: 'strength', label: '筋力' },
+  { value: 'lose_fat', label: '絞る' },
+  { value: 'muscle', label: '筋肥大' },
+  { value: 'custom', label: 'その他' },
+];
+const envOpts: { value: TrainingEnvironment; label: string }[] = [
+  { value: 'gym', label: 'ジム' },
+  { value: 'bodyweight', label: '自重' },
+  { value: 'home_equipment', label: '自宅' },
+];
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -41,6 +54,12 @@ export default function SettingsScreen() {
   const [weeks, setWeeks] = useState(profile?.targetWeeks ?? 12);
   const [frequency, setFrequency] = useState<TrainingFrequency>(profile?.trainingFrequency ?? 'w3_4');
   const [intensity, setIntensity] = useState<TrainingIntensity>(profile?.trainingIntensity ?? 'moderate');
+  const [sex, setSex] = useState<Sex>(profile?.sex ?? 'male');
+  const [height, setHeight] = useState(profile ? String(profile.height) : '170');
+  const [motivation, setMotivation] = useState<Motivation>(profile?.motivation ?? 'health');
+  const [environments, setEnvironments] = useState<TrainingEnvironment[]>(
+    profile?.trainingEnvironments ?? ['gym']
+  );
 
   if (!profile) {
     return (
@@ -53,18 +72,25 @@ export default function SettingsScreen() {
 
   const w = Number(weight) || profile.weight;
   const tw = Number(targetWeight) || profile.targetWeight;
+  const h = Number(height) || profile.height;
   const age = calcAge(profile.birthDate);
-  const bmr = calculateBMR(profile.sex, w, profile.height, age);
+  const bmr = calculateBMR(sex, w, h, age);
   const tdee = calculateTDEE(bmr, { frequency, intensity });
   const direction = directionFromWeights(w, tw);
-  const floor = Math.max(Math.round(bmr), profile.sex === 'male' ? 1500 : 1200);
+  const floor = Math.max(Math.round(bmr), sex === 'male' ? 1500 : 1200);
   const plan = planCalories(tdee, w, tw, weeks, floor);
   const macros = calculateMacros(plan.dailyCalorieTarget, w, direction);
   const showWeeks = Math.abs(tw - w) >= 0.5;
+  const toggleEnv = (v: TrainingEnvironment) =>
+    setEnvironments((prev) => (prev.includes(v) ? prev.filter((e) => e !== v) : [...prev, v]));
 
   function save() {
     updateProfile({
       weight: w,
+      height: h,
+      sex,
+      motivation,
+      trainingEnvironments: environments.length > 0 ? environments : ['gym'],
       targetWeight: Math.round(tw),
       targetWeeks: showWeeks ? weeks : undefined,
       trainingFrequency: frequency,
@@ -97,6 +123,77 @@ export default function SettingsScreen() {
   return (
     <ScrollView className="flex-1 bg-gray-950" contentContainerStyle={{ padding: 20, gap: 16 }}>
       <Stack.Screen options={headerOptions} />
+
+      {/* 基本情報 */}
+      <Card>
+        <Text className="mb-4 font-semibold text-white">基本情報</Text>
+        <View className="gap-4">
+          <View>
+            <Text className="mb-1 text-sm text-gray-400">目的</Text>
+            <View className="flex-row flex-wrap gap-2">
+              {motivationOpts.map((o) => {
+                const active = motivation === o.value;
+                return (
+                  <Pressable
+                    key={o.value}
+                    onPress={() => setMotivation(o.value)}
+                    className={`rounded-lg px-3 py-2 ${active ? 'bg-orange-500' : 'bg-gray-700'}`}>
+                    <Text className={`text-xs ${active ? 'text-white' : 'text-gray-300'}`}>{o.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+          <View className="flex-row gap-4">
+            <View className="flex-1">
+              <Text className="mb-1 text-sm text-gray-400">性別</Text>
+              <View className="flex-row gap-2">
+                {(['male', 'female'] as Sex[]).map((s) => {
+                  const active = sex === s;
+                  return (
+                    <Pressable
+                      key={s}
+                      onPress={() => setSex(s)}
+                      className={`flex-1 rounded-lg py-2 ${active ? 'bg-orange-500' : 'bg-gray-700'}`}>
+                      <Text className={`text-center text-xs ${active ? 'text-white' : 'text-gray-300'}`}>
+                        {s === 'male' ? '男性' : '女性'}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+            <View className="flex-1">
+              <Text className="mb-1 text-sm text-gray-400">身長 (cm)</Text>
+              <TextInput
+                keyboardType="numeric"
+                value={height}
+                onChangeText={setHeight}
+                placeholderTextColor={placeholderColor}
+                className={inputClass}
+              />
+            </View>
+          </View>
+          <View>
+            <Text className="mb-1 text-sm text-gray-400">運動環境（複数可）</Text>
+            <View className="flex-row gap-2">
+              {envOpts.map((o) => {
+                const active = environments.includes(o.value);
+                return (
+                  <Pressable
+                    key={o.value}
+                    onPress={() => toggleEnv(o.value)}
+                    className={`flex-1 rounded-lg py-2 ${active ? 'bg-orange-500' : 'bg-gray-700'}`}>
+                    <Text className={`text-center text-xs ${active ? 'text-white' : 'text-gray-300'}`}>
+                      {o.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      </Card>
 
       {/* クイック編集 */}
       <Card>

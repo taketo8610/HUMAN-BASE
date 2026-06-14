@@ -28,6 +28,7 @@ import {
 import { suggestMeals } from '@/lib/mealSuggestion';
 import { genId } from '@/lib/id';
 import BodyComposition from '@/components/BodyComposition';
+import BirthDateField from '@/components/BirthDateField';
 import { colors } from '@/lib/colors';
 import { placeholderColor } from '@/components/ui';
 
@@ -125,9 +126,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
   const [motivation, setMotivation] = useState<Motivation>('health');
   const [motivationCustom, setMotivationCustom] = useState('');
   const [sex, setSex] = useState<Sex>('male');
-  const [birthYear, setBirthYear] = useState('2000');
-  const [birthMonth, setBirthMonth] = useState('1');
-  const [birthDay, setBirthDay] = useState('1');
+  const [birthDate, setBirthDate] = useState('2000-01-01');
   const [height, setHeight] = useState(170);
   const [weight, setWeight] = useState(70);
   const [frequency, setFrequency] = useState<TrainingFrequency>('w3_4');
@@ -138,6 +137,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
   const [enableWeight, setEnableWeight] = useState(false);
   const [targetWeightInput, setTargetWeightInput] = useState<number | null>(null);
   const [weeks, setWeeks] = useState(12);
+  const [mealVariant, setMealVariant] = useState(0);
   // 目標にする項目はユーザーが任意で選ぶ（目的による強制分岐はしない）。
   const [enableBodyFat, setEnableBodyFat] = useState(false);
   const [bodyFatTarget, setBodyFatTarget] = useState('');
@@ -146,7 +146,6 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
   const [enableHabit, setEnableHabit] = useState(false);
   const [habitPerWeek, setHabitPerWeek] = useState('3');
 
-  const birthDate = `${birthYear || '2000'}-${(birthMonth || '1').padStart(2, '0')}-${(birthDay || '1').padStart(2, '0')}`;
   const age = calcAge(birthDate);
   const bmr = calculateBMR(sex, weight, height, age);
   const tdee = calculateTDEE(bmr, { frequency, intensity });
@@ -161,7 +160,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
   const plan = planCalories(tdee, weight, targetWeight, weeks, calorieFloor);
   const dailyCalorieTarget = plan.dailyCalorieTarget;
   const macros = calculateMacros(dailyCalorieTarget, weight, goalDirection);
-  const meals = suggestMeals(dailyCalorieTarget, goalDirection);
+  const meals = suggestMeals(dailyCalorieTarget, goalDirection, mealVariant);
 
   const body = recommendBodyComposition(motivation, sex);
   const liftGuide = recommendLiftTargets(weight);
@@ -308,41 +307,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
               </View>
               <View>
                 <Text className="mb-2 text-sm text-gray-400">生年月日</Text>
-                <View className="flex-row gap-3">
-                  <View className="flex-[1.4]">
-                    <TextInput
-                      keyboardType="numeric"
-                      value={birthYear}
-                      onChangeText={setBirthYear}
-                      placeholder="年"
-                      maxLength={4}
-                      placeholderTextColor={placeholderColor}
-                      className={numField}
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <TextInput
-                      keyboardType="numeric"
-                      value={birthMonth}
-                      onChangeText={setBirthMonth}
-                      placeholder="月"
-                      maxLength={2}
-                      placeholderTextColor={placeholderColor}
-                      className={numField}
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <TextInput
-                      keyboardType="numeric"
-                      value={birthDay}
-                      onChangeText={setBirthDay}
-                      placeholder="日"
-                      maxLength={2}
-                      placeholderTextColor={placeholderColor}
-                      className={numField}
-                    />
-                  </View>
-                </View>
+                <BirthDateField value={birthDate} onChange={setBirthDate} />
                 <Text className="mt-1 text-xs text-gray-500">
                   現在の年齢: {age > 0 ? `${age}歳` : '—'}（誕生日が来ると自動で更新されます）
                 </Text>
@@ -638,7 +603,12 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
             </View>
 
             <View className="gap-2 rounded-xl bg-gray-800 p-4">
-              <Text className="mb-1 text-sm text-gray-400">{goalLabels[goalDirection]}向けの食事例</Text>
+              <View className="mb-1 flex-row items-center justify-between">
+                <Text className="text-sm text-gray-400">{goalLabels[goalDirection]}向けの食事例</Text>
+                <Pressable onPress={() => setMealVariant((v) => v + 1)} hitSlop={6}>
+                  <Text className="text-xs text-orange-400">別の例 ↻</Text>
+                </Pressable>
+              </View>
               {meals.map((m) => (
                 <View key={m.meal} className="flex-row items-center justify-between">
                   <Text className="flex-1 pr-2 text-sm text-gray-200">
