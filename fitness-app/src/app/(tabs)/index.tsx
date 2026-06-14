@@ -6,6 +6,7 @@ import { Dumbbell, Flame, Scale, type LucideIcon } from 'lucide-react-native';
 import { useAppStore } from '@/store/useAppStore';
 import LineChart from '@/components/LineChart';
 import { colors } from '@/lib/colors';
+import { currentForGoal, progressPctForGoal } from '@/lib/progress';
 
 const goalLabel: Record<string, string> = { bulk: '増量', cut: '減量', maintain: '維持' };
 const motivationMessages: Record<string, string> = {
@@ -112,17 +113,32 @@ export default function Dashboard() {
             />
           </View>
           {userProfile.goals.length > 0 && (
-            <View className="mt-3 gap-1 border-t border-gray-700 pt-3">
-              <Text className="mb-1 text-xs text-gray-500">設定中の目標</Text>
-              {userProfile.goals.map((g) => (
-                <View key={g.id} className="flex-row justify-between">
-                  <Text className="text-xs text-gray-400">{g.label}</Text>
-                  <Text className="text-xs font-medium text-gray-200">
-                    {g.target}
-                    {g.unit}
-                  </Text>
-                </View>
-              ))}
+            <View className="mt-3 gap-2 border-t border-gray-700 pt-3">
+              <Text className="text-xs text-gray-500">設定中の目標</Text>
+              {userProfile.goals.map((g) => {
+                const current = currentForGoal(g, workoutLogs, bodyRecords);
+                const pct = progressPctForGoal(g, current);
+                return (
+                  <View key={g.id} className="gap-1">
+                    <View className="flex-row justify-between">
+                      <Text className="text-xs text-gray-400">{g.label}</Text>
+                      <Text className="text-xs font-medium text-gray-200">
+                        {current != null ? `${current} / ` : ''}
+                        {g.target}
+                        {g.unit}
+                      </Text>
+                    </View>
+                    {pct != null && (
+                      <View className="h-1.5 overflow-hidden rounded-full bg-gray-700">
+                        <View
+                          className="h-1.5 rounded-full bg-orange-500"
+                          style={{ width: `${pct}%` as `${number}%` }}
+                        />
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
             </View>
           )}
         </View>

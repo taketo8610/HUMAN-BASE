@@ -23,6 +23,7 @@ import {
   recommendLiftTargets,
   directionFromWeights,
   planCalories,
+  targetWeightFromBMI,
 } from '@/lib/fitness';
 import { suggestMeals } from '@/lib/mealSuggestion';
 import { genId } from '@/lib/id';
@@ -124,7 +125,9 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
   const [motivation, setMotivation] = useState<Motivation>('health');
   const [motivationCustom, setMotivationCustom] = useState('');
   const [sex, setSex] = useState<Sex>('male');
-  const [birthDate, setBirthDate] = useState('2000-01-01');
+  const [birthYear, setBirthYear] = useState('2000');
+  const [birthMonth, setBirthMonth] = useState('1');
+  const [birthDay, setBirthDay] = useState('1');
   const [height, setHeight] = useState(170);
   const [weight, setWeight] = useState(70);
   const [frequency, setFrequency] = useState<TrainingFrequency>('w3_4');
@@ -132,6 +135,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
   const [environments, setEnvironments] = useState<TrainingEnvironment[]>(['gym']);
 
   // 目標体重はスライダーで具体的に設定（未操作なら現在体重）。方向性はここから自動判定する。
+  const [enableWeight, setEnableWeight] = useState(false);
   const [targetWeightInput, setTargetWeightInput] = useState<number | null>(null);
   const [weeks, setWeeks] = useState(12);
   // 目標にする項目はユーザーが任意で選ぶ（目的による強制分岐はしない）。
@@ -142,11 +146,12 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
   const [enableHabit, setEnableHabit] = useState(false);
   const [habitPerWeek, setHabitPerWeek] = useState('3');
 
+  const birthDate = `${birthYear || '2000'}-${(birthMonth || '1').padStart(2, '0')}-${(birthDay || '1').padStart(2, '0')}`;
   const age = calcAge(birthDate);
   const bmr = calculateBMR(sex, weight, height, age);
   const tdee = calculateTDEE(bmr, { frequency, intensity });
 
-  const targetWeight = targetWeightInput ?? weight;
+  const targetWeight = enableWeight ? targetWeightInput ?? weight : weight;
   const goalDirection = directionFromWeights(weight, targetWeight);
   const weightDiff = targetWeight - weight;
   const weightMin = Math.max(35, Math.round(weight - 15));
@@ -162,6 +167,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
   const liftGuide = recommendLiftTargets(weight);
 
   // 目的に応じた「おすすめ項目」（強制ではなく初期の目印）
+  const recWeight = motivation === 'lose_fat' || motivation === 'muscle' || motivation === 'attractive';
   const recBodyFat = motivation === 'lose_fat' || motivation === 'attractive' || motivation === 'health';
   const recLift = motivation === 'strength' || motivation === 'muscle';
   const recHabit = motivation === 'health' || motivation === 'custom';
@@ -170,9 +176,10 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
     setEnvironments((prev) => (prev.includes(v) ? prev.filter((e) => e !== v) : [...prev, v]));
 
   function handleComplete() {
-    const goals: FitnessGoal[] = [
-      { id: genId(), kind: 'weight', target: Math.round(targetWeight), unit: 'kg', label: '目標体重' },
-    ];
+    const goals: FitnessGoal[] = [];
+    if (enableWeight) {
+      goals.push({ id: genId(), kind: 'weight', target: Math.round(targetWeight), unit: 'kg', label: '目標体重' });
+    }
     if (enableBodyFat && Number(bodyFatTarget) > 0) {
       goals.push({ id: genId(), kind: 'bodyfat', target: Number(bodyFatTarget), unit: '%', label: '目標体脂肪率' });
     }
@@ -199,7 +206,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
       goalDirection,
       goals,
       targetWeight: Math.round(targetWeight),
-      targetWeeks: Math.abs(weightDiff) >= 0.5 ? weeks : undefined,
+      targetWeeks: enableWeight && Math.abs(weightDiff) >= 0.5 ? weeks : undefined,
       targetBodyFat: enableBodyFat && Number(bodyFatTarget) > 0 ? Number(bodyFatTarget) : undefined,
       dailyCalorieTarget,
       macros,
@@ -301,13 +308,41 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
               </View>
               <View>
                 <Text className="mb-2 text-sm text-gray-400">生年月日</Text>
-                <TextInput
-                  value={birthDate}
-                  onChangeText={setBirthDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={placeholderColor}
-                  className={numField}
-                />
+                <View className="flex-row gap-3">
+                  <View className="flex-[1.4]">
+                    <TextInput
+                      keyboardType="numeric"
+                      value={birthYear}
+                      onChangeText={setBirthYear}
+                      placeholder="年"
+                      maxLength={4}
+                      placeholderTextColor={placeholderColor}
+                      className={numField}
+                    />
+                  </View>
+                  <View className="flex-1">
+                    <TextInput
+                      keyboardType="numeric"
+                      value={birthMonth}
+                      onChangeText={setBirthMonth}
+                      placeholder="月"
+                      maxLength={2}
+                      placeholderTextColor={placeholderColor}
+                      className={numField}
+                    />
+                  </View>
+                  <View className="flex-1">
+                    <TextInput
+                      keyboardType="numeric"
+                      value={birthDay}
+                      onChangeText={setBirthDay}
+                      placeholder="日"
+                      maxLength={2}
+                      placeholderTextColor={placeholderColor}
+                      className={numField}
+                    />
+                  </View>
+                </View>
                 <Text className="mt-1 text-xs text-gray-500">
                   現在の年齢: {age > 0 ? `${age}歳` : '—'}（誕生日が来ると自動で更新されます）
                 </Text>
@@ -424,62 +459,136 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
               <BodyComposition motivation={motivation} sex={sex} height={height} currentWeight={weight} />
             </View>
 
-            {/* 目標体重スライダー */}
-            <View className="mb-4 rounded-xl bg-gray-800 p-4">
-              <View className="mb-1 flex-row items-end justify-between">
-                <Text className="text-sm text-gray-400">目標体重</Text>
-                <Text className="text-2xl font-bold text-orange-400">{targetWeight.toFixed(1)} kg</Text>
-              </View>
-              <Slider
-                style={{ width: '100%', height: 40 }}
-                minimumValue={weightMin}
-                maximumValue={weightMax}
-                step={0.5}
-                value={targetWeight}
-                onValueChange={(v) => setTargetWeightInput(v)}
-                minimumTrackTintColor={colors.orange500}
-                maximumTrackTintColor={colors.gray700}
-                thumbTintColor={colors.orange400}
-              />
-              <View className="flex-row items-center justify-between">
-                <Text className="text-[10px] text-gray-500">{weightMin}kg</Text>
-                <Text className="text-xs text-gray-300">
-                  現在 {weight}kg ／ {goalLabels[goalDirection]}
-                  {Math.abs(weightDiff) >= 0.5 ? ` ${weightDiff > 0 ? '+' : ''}${weightDiff.toFixed(1)}kg` : ''}
-                </Text>
-                <Text className="text-[10px] text-gray-500">{weightMax}kg</Text>
-              </View>
+            <Text className="mb-2 text-sm text-gray-400">目標にする項目（すべて任意・複数可）</Text>
+            <View className="mb-4 gap-3">
+              {/* 体重（任意） */}
+              <GoalSection
+                enabled={enableWeight}
+                onToggle={() => setEnableWeight((v) => !v)}
+                title="体重"
+                recommended={recWeight}
+                hint={`現在 ${weight}kg ／ 目安 〜${targetWeightFromBMI(body.bmiRange, height)}kg`}>
+                <View className="gap-3">
+                  <View>
+                    <View className="mb-1 flex-row items-end justify-between">
+                      <Text className="text-sm text-gray-400">目標体重</Text>
+                      <Text className="text-xl font-bold text-orange-400">{targetWeight.toFixed(1)} kg</Text>
+                    </View>
+                    <Slider
+                      style={{ width: '100%', height: 40 }}
+                      minimumValue={weightMin}
+                      maximumValue={weightMax}
+                      step={0.5}
+                      value={targetWeight}
+                      onValueChange={(v) => setTargetWeightInput(v)}
+                      minimumTrackTintColor={colors.orange500}
+                      maximumTrackTintColor={colors.gray700}
+                      thumbTintColor={colors.orange400}
+                    />
+                    <View className="flex-row justify-between">
+                      <Text className="text-[10px] text-gray-500">{weightMin}kg</Text>
+                      <Text className="text-xs text-gray-300">
+                        {goalLabels[goalDirection]}
+                        {Math.abs(weightDiff) >= 0.5 ? ` ${weightDiff > 0 ? '+' : ''}${weightDiff.toFixed(1)}kg` : ''}
+                      </Text>
+                      <Text className="text-[10px] text-gray-500">{weightMax}kg</Text>
+                    </View>
+                  </View>
+
+                  {Math.abs(weightDiff) >= 0.5 && (
+                    <View>
+                      <View className="mb-1 flex-row items-end justify-between">
+                        <Text className="text-sm text-gray-400">いつまでに</Text>
+                        <Text className="font-bold text-white">
+                          {weeks}週間
+                          <Text className="text-xs text-gray-400"> (約{Math.max(1, Math.round(weeks / 4.345))}ヶ月)</Text>
+                        </Text>
+                      </View>
+                      <Slider
+                        style={{ width: '100%', height: 40 }}
+                        minimumValue={4}
+                        maximumValue={52}
+                        step={1}
+                        value={weeks}
+                        onValueChange={(v) => setWeeks(Math.round(v))}
+                        minimumTrackTintColor={colors.orange500}
+                        maximumTrackTintColor={colors.gray700}
+                        thumbTintColor={colors.orange400}
+                      />
+                      <Text className="text-xs text-gray-300">
+                        ペース: 週 {plan.weeklyWeightChange > 0 ? '+' : ''}
+                        {plan.weeklyWeightChange.toFixed(2)} kg
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </GoalSection>
+
+              {/* 体脂肪率（任意） */}
+              <GoalSection
+                enabled={enableBodyFat}
+                onToggle={() => setEnableBodyFat((v) => !v)}
+                title="体脂肪率"
+                recommended={recBodyFat}
+                hint={`目安: ${body.bodyFatRange[0]}〜${body.bodyFatRange[1]}%`}>
+                <View className="flex-row items-center gap-3">
+                  <Text className="text-gray-200">目標</Text>
+                  <TextInput
+                    keyboardType="numeric"
+                    value={bodyFatTarget}
+                    onChangeText={setBodyFatTarget}
+                    placeholder="%"
+                    placeholderTextColor={placeholderColor}
+                    className="w-24 rounded-lg bg-gray-700 px-3 py-2 text-center text-white"
+                  />
+                </View>
+              </GoalSection>
+
+              {/* 種目重量 BIG3（任意） */}
+              <GoalSection
+                enabled={enableLift}
+                onToggle={() => setEnableLift((v) => !v)}
+                title="種目重量（BIG3）"
+                recommended={recLift}
+                hint={`目安: ベンチ${liftGuide.bench} / スクワット${liftGuide.squat} / デッド${liftGuide.deadlift}kg`}>
+                <View className="gap-2">
+                  {liftDefs.map((l) => (
+                    <View key={l.key} className="flex-row items-center justify-between gap-3">
+                      <Text className="flex-1 text-gray-200">{l.label}</Text>
+                      <TextInput
+                        keyboardType="numeric"
+                        value={lifts[l.key]}
+                        onChangeText={(t) => setLifts((prev) => ({ ...prev, [l.key]: t }))}
+                        placeholder="kg"
+                        placeholderTextColor={placeholderColor}
+                        className="w-24 rounded-lg bg-gray-700 px-3 py-2 text-center text-white"
+                      />
+                    </View>
+                  ))}
+                </View>
+              </GoalSection>
+
+              {/* トレーニング習慣（任意） */}
+              <GoalSection
+                enabled={enableHabit}
+                onToggle={() => setEnableHabit((v) => !v)}
+                title="トレーニング習慣"
+                recommended={recHabit}
+                hint="目安: 週3回継続">
+                <View className="flex-row items-center gap-3">
+                  <Text className="text-gray-200">週</Text>
+                  <TextInput
+                    keyboardType="numeric"
+                    value={habitPerWeek}
+                    onChangeText={setHabitPerWeek}
+                    className="w-20 rounded-lg bg-gray-700 px-3 py-2 text-center text-white"
+                  />
+                  <Text className="text-gray-200">回</Text>
+                </View>
+              </GoalSection>
             </View>
 
-            {/* 達成までの期間（維持以外） */}
-            {Math.abs(weightDiff) >= 0.5 && (
-              <View className="mb-4 rounded-xl bg-gray-800 p-4">
-                <View className="mb-1 flex-row items-end justify-between">
-                  <Text className="text-sm text-gray-400">いつまでに達成する？</Text>
-                  <Text className="text-lg font-bold text-white">
-                    {weeks}週間
-                    <Text className="text-sm text-gray-400"> (約{Math.max(1, Math.round(weeks / 4.345))}ヶ月)</Text>
-                  </Text>
-                </View>
-                <Slider
-                  style={{ width: '100%', height: 40 }}
-                  minimumValue={4}
-                  maximumValue={52}
-                  step={1}
-                  value={weeks}
-                  onValueChange={(v) => setWeeks(Math.round(v))}
-                  minimumTrackTintColor={colors.orange500}
-                  maximumTrackTintColor={colors.gray700}
-                  thumbTintColor={colors.orange400}
-                />
-                <Text className="text-xs text-gray-300">
-                  ペース: 週 {plan.weeklyWeightChange > 0 ? '+' : ''}
-                  {plan.weeklyWeightChange.toFixed(2)} kg
-                </Text>
-              </View>
-            )}
-
-            {/* カロリー結果（根拠付き） */}
+            {/* カロリー結果（体重目標がなくても維持ベースで算出して常時表示） */}
             <View className="mb-4 rounded-xl bg-gray-800 p-4">
               <Text className="mb-1 text-sm text-gray-400">1日の目標カロリー</Text>
               <Text className="text-3xl font-bold text-orange-400">
@@ -505,70 +614,6 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
                 </Text>
               </View>
             )}
-
-            {/* 目標にする項目（任意・ユーザーが選ぶ） */}
-            <Text className="mb-2 text-sm text-gray-400">目標にする項目（任意・複数可）</Text>
-            <View className="gap-3">
-              <GoalSection
-                enabled={enableBodyFat}
-                onToggle={() => setEnableBodyFat((v) => !v)}
-                title="体脂肪率"
-                recommended={recBodyFat}
-                hint={`目安: ${body.bodyFatRange[0]}〜${body.bodyFatRange[1]}%`}>
-                <View className="flex-row items-center gap-3">
-                  <Text className="text-gray-200">目標</Text>
-                  <TextInput
-                    keyboardType="numeric"
-                    value={bodyFatTarget}
-                    onChangeText={setBodyFatTarget}
-                    placeholder="%"
-                    placeholderTextColor={placeholderColor}
-                    className="w-24 rounded-lg bg-gray-700 px-3 py-2 text-center text-white"
-                  />
-                </View>
-              </GoalSection>
-
-              <GoalSection
-                enabled={enableLift}
-                onToggle={() => setEnableLift((v) => !v)}
-                title="種目重量（BIG3）"
-                recommended={recLift}
-                hint={`目安: ベンチ${liftGuide.bench} / スクワット${liftGuide.squat} / デッド${liftGuide.deadlift}kg`}>
-                <View className="gap-2">
-                  {liftDefs.map((l) => (
-                    <View key={l.key} className="flex-row items-center justify-between gap-3">
-                      <Text className="flex-1 text-gray-200">{l.label}</Text>
-                      <TextInput
-                        keyboardType="numeric"
-                        value={lifts[l.key]}
-                        onChangeText={(t) => setLifts((prev) => ({ ...prev, [l.key]: t }))}
-                        placeholder="kg"
-                        placeholderTextColor={placeholderColor}
-                        className="w-24 rounded-lg bg-gray-700 px-3 py-2 text-center text-white"
-                      />
-                    </View>
-                  ))}
-                </View>
-              </GoalSection>
-
-              <GoalSection
-                enabled={enableHabit}
-                onToggle={() => setEnableHabit((v) => !v)}
-                title="トレーニング習慣"
-                recommended={recHabit}
-                hint="目安: 週3回継続">
-                <View className="flex-row items-center gap-3">
-                  <Text className="text-gray-200">週</Text>
-                  <TextInput
-                    keyboardType="numeric"
-                    value={habitPerWeek}
-                    onChangeText={setHabitPerWeek}
-                    className="w-20 rounded-lg bg-gray-700 px-3 py-2 text-center text-white"
-                  />
-                  <Text className="text-gray-200">回</Text>
-                </View>
-              </GoalSection>
-            </View>
           </View>
         )}
 

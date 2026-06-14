@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView } from 'react-native';
 import { format, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { Plus, Trash2, X } from 'lucide-react-native';
+import { Plus, Trash2, X, Sparkles } from 'lucide-react-native';
 
 import { useAppStore } from '@/store/useAppStore';
 import { PlannedExercise, TrainingDay, DayOfWeek } from '@/types';
 import { genId } from '@/lib/id';
 import { colors } from '@/lib/colors';
+import { suggestTrainingPlan } from '@/lib/menuSuggestion';
 import { Card, Field, PrimaryButton, EmptyState, inputClass, placeholderColor } from '@/components/ui';
 
 const dayList: { value: DayOfWeek; label: string }[] = [
@@ -22,7 +23,7 @@ const dayList: { value: DayOfWeek; label: string }[] = [
 const dayLabel = (d: DayOfWeek) => dayList[d].label;
 
 export default function PlanScreen() {
-  const { trainingPlans, addTrainingPlan, deleteTrainingPlan } = useAppStore();
+  const { trainingPlans, addTrainingPlan, deleteTrainingPlan, userProfile } = useAppStore();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [days, setDays] = useState<TrainingDay[]>([]);
@@ -84,8 +85,28 @@ export default function PlanScreen() {
 
   const sortedDays = [...days].sort((a, b) => a.dayOfWeek - b.dayOfWeek);
 
+  const handleGenerate = () => {
+    if (!userProfile) return;
+    addTrainingPlan(
+      suggestTrainingPlan(
+        userProfile.trainingEnvironments,
+        userProfile.trainingFrequency,
+        userProfile.goalDirection
+      )
+    );
+  };
+
   return (
     <ScrollView className="flex-1 bg-gray-950" contentContainerStyle={{ padding: 20 }}>
+      {userProfile && (
+        <Pressable
+          onPress={handleGenerate}
+          className="mb-6 flex-row items-center justify-center gap-2 rounded-xl border border-orange-500/40 bg-orange-500/10 py-3 active:bg-orange-500/20">
+          <Sparkles color={colors.orange400} size={18} />
+          <Text className="font-medium text-orange-400">あなたに合うメニューを自動生成</Text>
+        </Pressable>
+      )}
+
       <Card className="mb-8">
         <View className="gap-4">
           <View className="flex-row gap-4">

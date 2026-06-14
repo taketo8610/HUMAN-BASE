@@ -1,24 +1,34 @@
 import { View, Text } from 'react-native';
-import Svg, { Circle, Rect } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 import { Motivation, Sex } from '@/types';
 import { recommendBodyComposition, targetWeightFromBMI } from '@/lib/fitness';
 import { colors } from '@/lib/colors';
 
-// BMI に応じて胴・脚の太さが変わる簡易シルエット。体型の差を直感的に示す。
-function Body({ bmi, color }: { bmi: number; color: string }) {
-  const cx = 30;
-  const torsoW = Math.min(34, Math.max(13, 20 * (bmi / 22)));
-  const legW = Math.max(5, torsoW * 0.34);
-  const armW = Math.max(4, torsoW * 0.2);
+// BMI に応じて肩・ウエスト・腰の幅が変わる人型シルエット。男女で体型差を出す。
+function Body({ bmi, sex, color }: { bmi: number; sex: Sex; color: string }) {
+  const cx = 50;
+  const f = Math.min(1.55, Math.max(0.78, bmi / 22)); // BMI22 を基準にした太さ係数
+  const sh = (sex === 'male' ? 34 : 29) * f; // 肩幅
+  const wa = (sex === 'male' ? 22 : 18) * f; // ウエスト幅
+  const hp = (sex === 'male' ? 24 : 28) * f; // 腰幅
+
+  const torso = `M${cx - sh / 2},44 C${cx - sh / 2 - 1},62 ${cx - wa / 2},70 ${cx - wa / 2},86 C${cx - wa / 2},94 ${cx - hp / 2},98 ${cx - hp / 2},104 L${cx + hp / 2},104 C${cx + hp / 2},98 ${cx + wa / 2},94 ${cx + wa / 2},86 C${cx + wa / 2},70 ${cx + sh / 2 + 1},62 ${cx + sh / 2},44 Z`;
+  const leftLeg = `M${cx - hp / 2 + 1},103 L${cx - 2},103 L${cx - 4},170 L${cx - hp / 2 + 3},170 Z`;
+  const rightLeg = `M${cx + hp / 2 - 1},103 L${cx + 2},103 L${cx + 4},170 L${cx + hp / 2 - 3},170 Z`;
+  const armW = sh * 0.16;
+  const leftArm = `M${cx - sh / 2 + 2},48 C${cx - sh / 2 - 6},66 ${cx - sh / 2 - 5},84 ${cx - sh / 2 - 1},98 L${cx - sh / 2 - 1 + armW},98 C${cx - sh / 2 - 4 + armW},82 ${cx - sh / 2 - 4 + armW},66 ${cx - sh / 2 + 2 + armW},50 Z`;
+  const rightArm = `M${cx + sh / 2 - 2},48 C${cx + sh / 2 + 6},66 ${cx + sh / 2 + 5},84 ${cx + sh / 2 + 1},98 L${cx + sh / 2 + 1 - armW},98 C${cx + sh / 2 + 4 - armW},82 ${cx + sh / 2 + 4 - armW},66 ${cx + sh / 2 - 2 - armW},50 Z`;
+
   return (
-    <Svg width={64} height={104} viewBox="0 0 60 100">
-      <Circle cx={cx} cy={11} r={7} fill={color} />
-      <Rect x={cx - torsoW / 2} y={20} width={torsoW} height={36} rx={torsoW * 0.28} fill={color} />
-      <Rect x={cx - torsoW / 2 - armW - 1} y={22} width={armW} height={28} rx={armW / 2} fill={color} />
-      <Rect x={cx + torsoW / 2 + 1} y={22} width={armW} height={28} rx={armW / 2} fill={color} />
-      <Rect x={cx - legW - 1} y={56} width={legW} height={36} rx={legW * 0.4} fill={color} />
-      <Rect x={cx + 1} y={56} width={legW} height={36} rx={legW * 0.4} fill={color} />
+    <Svg width={70} height={120} viewBox="0 0 100 175">
+      <Circle cx={cx} cy={22} r={13} fill={color} />
+      <Path d={`M${cx - 5},33 L${cx + 5},33 L${cx + 5},46 L${cx - 5},46 Z`} fill={color} />
+      <Path d={leftArm} fill={color} />
+      <Path d={rightArm} fill={color} />
+      <Path d={torso} fill={color} />
+      <Path d={leftLeg} fill={color} />
+      <Path d={rightLeg} fill={color} />
     </Svg>
   );
 }
@@ -80,13 +90,13 @@ export default function BodyComposition({ motivation, sex, height, currentWeight
 
       <View className="flex-row items-end justify-center gap-6">
         <View className="items-center">
-          <Body bmi={currentBMI} color={colors.gray500} />
+          <Body bmi={currentBMI} sex={sex} color={colors.gray500} />
           <Text className="mt-1 text-xs text-gray-400">現在 {currentWeight}kg</Text>
           <Text className="text-[10px] text-gray-500">BMI {currentBMI.toFixed(1)}</Text>
         </View>
         <Text className="pb-8 text-2xl text-orange-500">→</Text>
         <View className="items-center">
-          <Body bmi={targetBMI} color={colors.orange500} />
+          <Body bmi={targetBMI} sex={sex} color={colors.orange500} />
           <Text className="mt-1 text-xs text-orange-400">目標 〜{targetWeight}kg</Text>
           <Text className="text-[10px] text-gray-500">BMI {targetBMI.toFixed(1)}</Text>
         </View>
