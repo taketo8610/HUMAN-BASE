@@ -25,6 +25,8 @@ interface AppState {
   deleteTrainingPlan: (id: string) => void;
 
   setUserProfile: (profile: UserProfile) => void;
+  updateProfile: (patch: Partial<UserProfile>) => void;
+  resetProfile: () => void;
   skipOnboarding: () => void;
 }
 
@@ -51,6 +53,9 @@ export const useAppStore = create<AppState>()(
       deleteTrainingPlan: (id) => set((s) => ({ trainingPlans: s.trainingPlans.filter((p) => p.id !== id) })),
 
       setUserProfile: (profile) => set({ userProfile: profile }),
+      updateProfile: (patch) =>
+        set((s) => ({ userProfile: s.userProfile ? { ...s.userProfile, ...patch } : s.userProfile })),
+      resetProfile: () => set({ userProfile: null }),
       skipOnboarding: () =>
         set({
           userProfile: {

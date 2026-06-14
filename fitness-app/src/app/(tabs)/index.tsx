@@ -62,6 +62,10 @@ export default function Dashboard() {
   }).filter((d): d is { date: string; weight: number } => d.weight !== null);
 
   const recentLogs = workoutLogs.slice(0, 3);
+  const calorieTarget = userProfile?.dailyCalorieTarget ?? 0;
+  const caloriePct =
+    calorieTarget > 0 ? Math.min(100, Math.round((todayCalories / calorieTarget) * 100)) : 0;
+  const overTarget = calorieTarget > 0 && todayCalories > calorieTarget;
 
   return (
     <ScrollView
@@ -87,6 +91,40 @@ export default function Dashboard() {
             </Text>
             <Text className="text-xs text-gray-400">1日の目標カロリー</Text>
           </View>
+        </View>
+      )}
+
+      {userProfile && (
+        <View className="rounded-xl bg-gray-800 p-4">
+          <View className="mb-2 flex-row items-end justify-between">
+            <Text className="text-sm text-gray-400">今日のカロリー</Text>
+            <Text className="text-sm">
+              <Text className={overTarget ? 'font-bold text-red-400' : 'font-bold text-white'}>
+                {todayCalories}
+              </Text>
+              <Text className="text-gray-500"> / {calorieTarget} kcal</Text>
+            </Text>
+          </View>
+          <View className="h-2 overflow-hidden rounded-full bg-gray-700">
+            <View
+              className={`h-2 rounded-full ${overTarget ? 'bg-red-400' : 'bg-orange-500'}`}
+              style={{ width: `${caloriePct}%` as `${number}%` }}
+            />
+          </View>
+          {userProfile.goals.length > 0 && (
+            <View className="mt-3 gap-1 border-t border-gray-700 pt-3">
+              <Text className="mb-1 text-xs text-gray-500">設定中の目標</Text>
+              {userProfile.goals.map((g) => (
+                <View key={g.id} className="flex-row justify-between">
+                  <Text className="text-xs text-gray-400">{g.label}</Text>
+                  <Text className="text-xs font-medium text-gray-200">
+                    {g.target}
+                    {g.unit}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
       )}
 

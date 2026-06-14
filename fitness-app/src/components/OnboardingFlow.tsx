@@ -18,11 +18,11 @@ import {
   calcAge,
   calculateBMR,
   calculateTDEE,
-  calculateDailyCalories,
   calculateMacros,
   recommendBodyComposition,
   recommendLiftTargets,
   directionFromWeights,
+  planCalories,
 } from '@/lib/fitness';
 import { suggestMeals } from '@/lib/mealSuggestion';
 import { genId } from '@/lib/id';
@@ -133,6 +133,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
 
   // 目標体重はスライダーで具体的に設定（未操作なら現在体重）。方向性はここから自動判定する。
   const [targetWeightInput, setTargetWeightInput] = useState<number | null>(null);
+  const [weeks, setWeeks] = useState(12);
   // 目標にする項目はユーザーが任意で選ぶ（目的による強制分岐はしない）。
   const [enableBodyFat, setEnableBodyFat] = useState(false);
   const [bodyFatTarget, setBodyFatTarget] = useState('');
@@ -150,8 +151,10 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
   const weightDiff = targetWeight - weight;
   const weightMin = Math.max(35, Math.round(weight - 15));
   const weightMax = Math.round(weight + 15);
+  const calorieFloor = Math.max(Math.round(bmr), sex === 'male' ? 1500 : 1200);
 
-  const dailyCalorieTarget = calculateDailyCalories(tdee, goalDirection);
+  const plan = planCalories(tdee, weight, targetWeight, weeks, calorieFloor);
+  const dailyCalorieTarget = plan.dailyCalorieTarget;
   const macros = calculateMacros(dailyCalorieTarget, weight, goalDirection);
   const meals = suggestMeals(dailyCalorieTarget, goalDirection);
 
@@ -196,6 +199,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
       goalDirection,
       goals,
       targetWeight: Math.round(targetWeight),
+      targetWeeks: Math.abs(weightDiff) >= 0.5 ? weeks : undefined,
       targetBodyFat: enableBodyFat && Number(bodyFatTarget) > 0 ? Number(bodyFatTarget) : undefined,
       dailyCalorieTarget,
       macros,
@@ -447,7 +451,35 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
               </View>
             </View>
 
-            {/* カロリー結果 */}
+            {/* 達成までの期間（維持以外） */}
+            {Math.abs(weightDiff) >= 0.5 && (
+              <View className="mb-4 rounded-xl bg-gray-800 p-4">
+                <View className="mb-1 flex-row items-end justify-between">
+                  <Text className="text-sm text-gray-400">いつまでに達成する？</Text>
+                  <Text className="text-lg font-bold text-white">
+                    {weeks}週間
+                    <Text className="text-sm text-gray-400"> (約{Math.max(1, Math.round(weeks / 4.345))}ヶ月)</Text>
+                  </Text>
+                </View>
+                <Slider
+                  style={{ width: '100%', height: 40 }}
+                  minimumValue={4}
+                  maximumValue={52}
+                  step={1}
+                  value={weeks}
+                  onValueChange={(v) => setWeeks(Math.round(v))}
+                  minimumTrackTintColor={colors.orange500}
+                  maximumTrackTintColor={colors.gray700}
+                  thumbTintColor={colors.orange400}
+                />
+                <Text className="text-xs text-gray-300">
+                  ペース: 週 {plan.weeklyWeightChange > 0 ? '+' : ''}
+                  {plan.weeklyWeightChange.toFixed(2)} kg
+                </Text>
+              </View>
+            )}
+
+            {/* カロリー結果（根拠付き） */}
             <View className="mb-4 rounded-xl bg-gray-800 p-4">
               <Text className="mb-1 text-sm text-gray-400">1日の目標カロリー</Text>
               <Text className="text-3xl font-bold text-orange-400">
@@ -455,9 +487,24 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
                 <Text className="text-lg text-gray-400"> kcal</Text>
               </Text>
               <Text className="mt-1 text-xs text-gray-500">
-                TDEE: {tdee} kcal ・ 方向性: {goalLabels[goalDirection]}
+                消費目安(TDEE) {tdee} {plan.dailyDelta >= 0 ? '＋' : '－'} {Math.abs(plan.dailyDelta)}
+                {' '}= {dailyCalorieTarget} kcal（{goalLabels[goalDirection]}）
               </Text>
             </View>
+
+            {plan.warning && (
+              <View
+                className={`mb-4 rounded-xl border p-3 ${
+                  plan.pace === 'extreme'
+                    ? 'border-red-500/40 bg-red-500/10'
+                    : 'border-yellow-500/40 bg-yellow-500/10'
+                }`}>
+                <Text
+                  className={`text-sm ${plan.pace === 'extreme' ? 'text-red-400' : 'text-yellow-400'}`}>
+                  ⚠️ {plan.warning}
+                </Text>
+              </View>
+            )}
 
             {/* 目標にする項目（任意・ユーザーが選ぶ） */}
             <Text className="mb-2 text-sm text-gray-400">目標にする項目（任意・複数可）</Text>

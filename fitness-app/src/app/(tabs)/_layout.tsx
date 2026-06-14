@@ -1,15 +1,18 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
+import { Pressable } from 'react-native';
 import {
   LayoutDashboard,
   Dumbbell,
   UtensilsCrossed,
   TrendingUp,
   CalendarDays,
+  Settings,
 } from 'lucide-react-native';
 
 import { colors } from '@/lib/colors';
 
 export default function TabsLayout() {
+  const router = useRouter();
   return (
     <Tabs
       screenOptions={{
@@ -28,6 +31,14 @@ export default function TabsLayout() {
           title: 'ダッシュボード',
           tabBarLabel: 'ホーム',
           tabBarIcon: ({ color, size }) => <LayoutDashboard color={color} size={size} />,
+          headerRight: () => (
+            <Pressable
+              onPress={() => router.push('/settings')}
+              hitSlop={8}
+              style={{ marginRight: 16 }}>
+              <Settings color={colors.gray400} size={22} />
+            </Pressable>
+          ),
         }}
       />
       <Tabs.Screen

@@ -44,6 +44,7 @@ export interface UserProfile {
   goalDirection: Goal; // カロリー計算用（増量/維持/減量）
   goals: FitnessGoal[]; // パーソナライズ目標（複数可）
   targetWeight: number; // kg
+  targetWeeks?: number; // 目標達成までの週数
   targetBodyFat?: number; // %
   dailyCalorieTarget: number; // kcal
   macros: Macros;

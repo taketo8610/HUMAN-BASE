@@ -215,3 +215,70 @@ export function directionFromWeights(currentWeight: number, targetWeight: number
   if (diff < -1) return 'cut';
   return 'maintain';
 }
+
+// 体重 1kg の増減に必要なおおよそのカロリー（脂肪・水分等の平均）。
+const KCAL_PER_KG = 7200;
+
+export type CaloriePace = 'maintain' | 'safe' | 'aggressive' | 'extreme';
+
+export interface CaloriePlan {
+  dailyCalorieTarget: number; // 1日の目標摂取カロリー
+  dailyDelta: number; // TDEE からの増減（収支）
+  weeklyWeightChange: number; // kg/週
+  pace: CaloriePace;
+  warning?: string;
+}
+
+// 「目標体重まで何週間で」から、必要なカロリー収支を逆算して目標カロリーを出す。
+// あわせてペースが安全か（無理がないか）を判定する。
+// floor は最低摂取カロリー（BMR や性別下限）で、これを下回らないようガードする。
+export function planCalories(
+  tdee: number,
+  currentWeight: number,
+  targetWeight: number,
+  weeks: number,
+  floor: number
+): CaloriePlan {
+  const totalChange = targetWeight - currentWeight;
+  if (weeks <= 0 || Math.abs(totalChange) < 0.5) {
+    return { dailyCalorieTarget: Math.round(tdee), dailyDelta: 0, weeklyWeightChange: 0, pace: 'maintain' };
+  }
+
+  const weeklyWeightChange = totalChange / weeks;
+  let dailyDelta = (weeklyWeightChange * KCAL_PER_KG) / 7;
+  let dailyCalorieTarget = tdee + dailyDelta;
+  let pace: CaloriePace = 'safe';
+  let warning: string | undefined;
+
+  const weeklyPct = (Math.abs(weeklyWeightChange) / currentWeight) * 100;
+  if (totalChange < 0) {
+    if (weeklyPct > 1.5) {
+      pace = 'extreme';
+      warning = 'ペースが速すぎます。筋肉が落ちやすく不健康です。期間を延ばすことをおすすめします。';
+    } else if (weeklyPct > 1.0) {
+      pace = 'aggressive';
+      warning = 'やや速めのペースです。無理のない範囲で進めましょう。';
+    }
+  } else if (weeklyWeightChange > 0.5) {
+    pace = 'extreme';
+    warning = '増量が速すぎます。脂肪が増えやすいので期間を延ばすのがおすすめです。';
+  } else if (weeklyWeightChange > 0.25) {
+    pace = 'aggressive';
+    warning = 'やや速めの増量ペースです。';
+  }
+
+  if (dailyCalorieTarget < floor) {
+    dailyCalorieTarget = floor;
+    dailyDelta = dailyCalorieTarget - tdee;
+    pace = 'extreme';
+    warning = `この期間だと摂取カロリーが下限(${Math.round(floor)}kcal)を下回ります。期間を延ばすか目標を見直しましょう。`;
+  }
+
+  return {
+    dailyCalorieTarget: Math.round(dailyCalorieTarget),
+    dailyDelta: Math.round(dailyDelta),
+    weeklyWeightChange,
+    pace,
+    warning,
+  };
+}
