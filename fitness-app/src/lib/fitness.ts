@@ -300,3 +300,21 @@ export function etaToTargetWeight(
   if (Math.sign(remaining) !== Math.sign(weeklyPace)) return 0;
   return Math.ceil(remaining / weeklyPace);
 }
+
+// 一般的な健康基準（目的別ゾーンとは別の、分かりやすい基準として表示する）。
+export const HEALTHY_BMI: readonly [number, number] = [18.5, 25];
+
+export function healthyBodyFatRange(sex: Sex): [number, number] {
+  return sex === 'male' ? [10, 20] : [20, 30];
+}
+
+export function bmiOf(weight: number, height: number): number {
+  const m = height / 100;
+  return m > 0 ? weight / (m * m) : 0;
+}
+
+// Deurenberg 式による体脂肪率の推定（体重だけ入力されたときのシルエット用）。
+export function estimateBodyFat(bmi: number, sex: Sex, age: number): number {
+  const bf = 1.2 * bmi + 0.23 * age - 10.8 * (sex === 'male' ? 1 : 0) - 5.4;
+  return Math.max(3, Math.min(50, Math.round(bf)));
+}

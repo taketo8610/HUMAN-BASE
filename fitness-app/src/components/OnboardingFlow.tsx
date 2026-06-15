@@ -421,7 +421,18 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
             </Text>
 
             <View className="mb-4">
-              <BodyComposition motivation={motivation} sex={sex} height={height} currentWeight={weight} />
+              <BodyComposition
+                sex={sex}
+                height={height}
+                age={age}
+                currentWeight={weight}
+                targetWeight={targetWeight}
+                targetBodyFat={
+                  enableBodyFat && Number(bodyFatTarget) > 0 ? Number(bodyFatTarget) : undefined
+                }
+                showBmiZone={enableWeight}
+                showFatZone={enableBodyFat}
+              />
             </View>
 
             <Text className="mb-2 text-sm text-gray-400">目標にする項目（すべて任意・複数可）</Text>
