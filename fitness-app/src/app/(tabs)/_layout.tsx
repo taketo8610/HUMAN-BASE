@@ -35,7 +35,9 @@ export default function TabsLayout() {
             <Pressable
               onPress={() => router.push('/settings')}
               hitSlop={8}
-              style={{ marginRight: 16 }}>
+              style={{ marginRight: 16 }}
+              accessibilityRole="button"
+              accessibilityLabel="設定を開く">
               <Settings color={colors.gray400} size={22} />
             </Pressable>
           ),

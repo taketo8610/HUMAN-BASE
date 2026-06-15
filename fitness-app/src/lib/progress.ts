@@ -2,12 +2,26 @@ import { isThisWeek, parseISO } from 'date-fns';
 
 import { FitnessGoal, WorkoutLog, BodyRecord } from '@/types';
 
-// ワークアウト記録から、ある種目で挙げた最大重量を求める（種目名は完全一致）。
+// 種目名の表記揺れを吸収するための正規化（空白除去・小文字化・全角/半角統一）。
+export function normalizeExercise(s: string): string {
+  return s.replace(/\s+/g, '').toLowerCase().normalize('NFKC');
+}
+
+// 2つの種目名が同一とみなせるか（完全一致 or 一方が他方を含む）。
+export function isSameExercise(a: string, b: string): boolean {
+  const na = normalizeExercise(a);
+  const nb = normalizeExercise(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  return na.length >= 2 && nb.length >= 2 && (na.includes(nb) || nb.includes(na));
+}
+
+// ワークアウト記録から、ある種目で挙げた最大重量を求める（表記揺れを吸収）。
 export function maxWeightForExercise(logs: WorkoutLog[], exercise: string): number {
   let max = 0;
   for (const log of logs) {
     for (const ex of log.exercises) {
-      if (ex.exercise === exercise && ex.weight > max) max = ex.weight;
+      if (isSameExercise(ex.exercise, exercise) && ex.weight > max) max = ex.weight;
     }
   }
   return max;

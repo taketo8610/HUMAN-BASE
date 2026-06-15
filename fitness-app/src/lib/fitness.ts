@@ -282,3 +282,39 @@ export function planCalories(
     warning,
   };
 }
+
+// 目標体重までの到達見込み週数（計画ペース基準）。
+// 達成済み・方向不一致は 0、期間や差が無効なら null を返す。
+export function etaToTargetWeight(
+  currentWeight: number,
+  startWeight: number,
+  targetWeight: number,
+  targetWeeks?: number
+): number | null {
+  if (!targetWeeks || targetWeeks <= 0) return null;
+  const total = targetWeight - startWeight;
+  if (Math.abs(total) < 0.5) return null;
+  const weeklyPace = total / targetWeeks;
+  const remaining = targetWeight - currentWeight;
+  if (Math.abs(remaining) < 0.3) return 0;
+  if (Math.sign(remaining) !== Math.sign(weeklyPace)) return 0;
+  return Math.ceil(remaining / weeklyPace);
+}
+
+// 一般的な健康基準（目的別ゾーンとは別の、分かりやすい基準として表示する）。
+export const HEALTHY_BMI: readonly [number, number] = [18.5, 25];
+
+export function healthyBodyFatRange(sex: Sex): [number, number] {
+  return sex === 'male' ? [10, 20] : [20, 30];
+}
+
+export function bmiOf(weight: number, height: number): number {
+  const m = height / 100;
+  return m > 0 ? weight / (m * m) : 0;
+}
+
+// Deurenberg 式による体脂肪率の推定（体重だけ入力されたときのシルエット用）。
+export function estimateBodyFat(bmi: number, sex: Sex, age: number): number {
+  const bf = 1.2 * bmi + 0.23 * age - 10.8 * (sex === 'male' ? 1 : 0) - 5.4;
+  return Math.max(3, Math.min(50, Math.round(bf)));
+}

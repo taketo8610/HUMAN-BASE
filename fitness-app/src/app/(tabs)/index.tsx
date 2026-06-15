@@ -7,6 +7,8 @@ import { useAppStore } from '@/store/useAppStore';
 import LineChart from '@/components/LineChart';
 import { colors } from '@/lib/colors';
 import { currentForGoal, progressPctForGoal } from '@/lib/progress';
+import { etaToTargetWeight } from '@/lib/fitness';
+import { addWeeks } from 'date-fns';
 
 const goalLabel: Record<string, string> = { bulk: '増量', cut: '減量', maintain: '維持' };
 const motivationMessages: Record<string, string> = {
@@ -67,6 +69,16 @@ export default function Dashboard() {
   const caloriePct =
     calorieTarget > 0 ? Math.min(100, Math.round((todayCalories / calorieTarget) * 100)) : 0;
   const overTarget = calorieTarget > 0 && todayCalories > calorieTarget;
+
+  // 目標体重への到達見込み
+  const weightGoal = userProfile?.goals.find((g) => g.kind === 'weight');
+  const currentWeight = bodyRecords[0]?.weight ?? userProfile?.weight ?? null;
+  const weightRemaining =
+    weightGoal && currentWeight != null ? weightGoal.target - currentWeight : null;
+  const etaWeeks =
+    weightGoal && currentWeight != null && userProfile
+      ? etaToTargetWeight(currentWeight, userProfile.weight, weightGoal.target, userProfile.targetWeeks)
+      : null;
 
   return (
     <ScrollView
@@ -140,6 +152,27 @@ export default function Dashboard() {
                 );
               })}
             </View>
+          )}
+        </View>
+      )}
+
+      {weightGoal && weightRemaining != null && (
+        <View className="rounded-xl bg-gray-800 p-4">
+          <Text className="text-sm text-gray-400">目標体重まで</Text>
+          {Math.abs(weightRemaining) < 0.5 ? (
+            <Text className="mt-1 text-lg font-bold text-green-400">🎉 目標達成！</Text>
+          ) : (
+            <>
+              <Text className="mt-1 text-2xl font-bold text-orange-400">
+                あと {Math.abs(weightRemaining).toFixed(1)}
+                <Text className="text-base text-gray-400"> kg</Text>
+              </Text>
+              {etaWeeks != null && etaWeeks > 0 && (
+                <Text className="mt-1 text-xs text-gray-500">
+                  計画ペースで約{etaWeeks}週間（目安: {format(addWeeks(new Date(), etaWeeks), 'yyyy/M/d')}）
+                </Text>
+              )}
+            </>
           )}
         </View>
       )}

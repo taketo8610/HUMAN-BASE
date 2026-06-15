@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView } from 'react-native';
 import { format, parseISO, isToday } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { Trash2 } from 'lucide-react-native';
+import { Trash2, UtensilsCrossed } from 'lucide-react-native';
 
 import { useAppStore } from '@/store/useAppStore';
 import { MealType } from '@/types';
@@ -164,12 +164,21 @@ export default function MealScreen() {
                 {entry.calories}kcal · P:{entry.protein}g C:{entry.carbs}g F:{entry.fat}g
               </Text>
             </View>
-            <Pressable onPress={() => deleteMealEntry(entry.id)}>
+            <Pressable
+              onPress={() => deleteMealEntry(entry.id)}
+              accessibilityRole="button"
+              accessibilityLabel="この記録を削除">
               <Trash2 color={colors.gray500} size={16} />
             </Pressable>
           </View>
         ))}
-        {mealEntries.length === 0 && <EmptyState text="記録がありません" />}
+        {mealEntries.length === 0 && (
+          <EmptyState
+            icon={UtensilsCrossed}
+            text="まだ記録がありません"
+            hint="食事を記録すると今日の合計に反映されます"
+          />
+        )}
       </View>
     </ScrollView>
   );
