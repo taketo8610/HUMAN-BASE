@@ -31,6 +31,7 @@ import BodyComposition from '@/components/BodyComposition';
 import BirthDateField from '@/components/BirthDateField';
 import { colors } from '@/lib/colors';
 import { placeholderColor } from '@/components/ui';
+import { toIntInput, toDecimalInput } from '@/lib/num';
 
 interface Props {
   onComplete: (profile: UserProfile) => void;
@@ -318,7 +319,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
                   <TextInput
                     keyboardType="numeric"
                     value={String(height)}
-                    onChangeText={(t) => setHeight(Number(t) || 0)}
+                    onChangeText={(t) => setHeight(Number(toIntInput(t)) || 0)}
                     className={numField}
                   />
                 </View>
@@ -327,7 +328,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
                   <TextInput
                     keyboardType="numeric"
                     value={String(weight)}
-                    onChangeText={(t) => setWeight(Number(t) || 0)}
+                    onChangeText={(t) => setWeight(Number(toDecimalInput(t)) || 0)}
                     className={numField}
                   />
                 </View>
@@ -512,7 +513,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
                   <TextInput
                     keyboardType="numeric"
                     value={bodyFatTarget}
-                    onChangeText={setBodyFatTarget}
+                    onChangeText={(t) => setBodyFatTarget(toDecimalInput(t))}
                     placeholder="%"
                     placeholderTextColor={placeholderColor}
                     className="w-24 rounded-lg bg-gray-700 px-3 py-2 text-center text-white"
@@ -534,7 +535,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
                       <TextInput
                         keyboardType="numeric"
                         value={lifts[l.key]}
-                        onChangeText={(t) => setLifts((prev) => ({ ...prev, [l.key]: t }))}
+                        onChangeText={(t) => setLifts((prev) => ({ ...prev, [l.key]: toDecimalInput(t) }))}
                         placeholder="kg"
                         placeholderTextColor={placeholderColor}
                         className="w-24 rounded-lg bg-gray-700 px-3 py-2 text-center text-white"
@@ -556,7 +557,7 @@ export default function OnboardingFlow({ onComplete, onSkip }: Props) {
                   <TextInput
                     keyboardType="numeric"
                     value={habitPerWeek}
-                    onChangeText={setHabitPerWeek}
+                    onChangeText={(t) => setHabitPerWeek(toIntInput(t))}
                     className="w-20 rounded-lg bg-gray-700 px-3 py-2 text-center text-white"
                   />
                   <Text className="text-gray-200">回</Text>

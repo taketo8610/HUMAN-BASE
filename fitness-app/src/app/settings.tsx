@@ -15,6 +15,7 @@ import {
 } from '@/lib/fitness';
 import { colors } from '@/lib/colors';
 import { Card, PrimaryButton, inputClass, placeholderColor } from '@/components/ui';
+import { toIntInput, toDecimalInput } from '@/lib/num';
 
 const goalLabels: Record<string, string> = { bulk: '増量', cut: '減量', maintain: '維持' };
 const freqOpts: { value: TrainingFrequency; label: string }[] = [
@@ -168,7 +169,7 @@ export default function SettingsScreen() {
               <TextInput
                 keyboardType="numeric"
                 value={height}
-                onChangeText={setHeight}
+                onChangeText={(t) => setHeight(toIntInput(t))}
                 placeholderTextColor={placeholderColor}
                 className={inputClass}
               />
@@ -205,7 +206,7 @@ export default function SettingsScreen() {
               <TextInput
                 keyboardType="numeric"
                 value={weight}
-                onChangeText={setWeight}
+                onChangeText={(t) => setWeight(toDecimalInput(t))}
                 placeholderTextColor={placeholderColor}
                 className={inputClass}
               />
@@ -215,7 +216,7 @@ export default function SettingsScreen() {
               <TextInput
                 keyboardType="numeric"
                 value={targetWeight}
-                onChangeText={setTargetWeight}
+                onChangeText={(t) => setTargetWeight(toDecimalInput(t))}
                 placeholderTextColor={placeholderColor}
                 className={inputClass}
               />

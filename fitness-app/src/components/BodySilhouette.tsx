@@ -61,8 +61,11 @@ export default function BodySilhouette({
   const leftLeg = `M${cx - hip + 1} 144 C${cx - thigh} 156 ${cx - thigh} 168 ${cx - thigh + 0.5} 176 C${cx - calf} 188 ${cx - ankle} 205 ${cx - ankle} 224 L${cx - 1.5} 224 L${cx - 1.5} 146 Z`;
   const rightLeg = `M${cx + hip - 1} 144 C${cx + thigh} 156 ${cx + thigh} 168 ${cx + thigh - 0.5} 176 C${cx + calf} 188 ${cx + ankle} 205 ${cx + ankle} 224 L${cx + 1.5} 224 L${cx + 1.5} 146 Z`;
 
-  const leftArm = `M${cx - shoulder + 1} 55 C${cx - shoulder - arm} 68 ${cx - shoulder - arm} 88 ${cx - chest - arm * 0.4} 108 L${cx - chest + 1} 106 C${cx - chest + 2} 88 ${cx - shoulder + 3} 66 ${cx - shoulder + 3} 57 Z`;
-  const rightArm = `M${cx + shoulder - 1} 55 C${cx + shoulder + arm} 68 ${cx + shoulder + arm} 88 ${cx + chest + arm * 0.4} 108 L${cx + chest - 1} 106 C${cx + chest - 2} 88 ${cx + shoulder - 3} 66 ${cx + shoulder - 3} 57 Z`;
+  // 腕は胴から少し離して配置し、太さ（筋肉量）が見えるようにする。
+  const armInner = Math.max(chest, belly, waist) + 2.5; // 胴の外側 + 隙間
+  const armW = arm + muscle * 1.4; // 腕の太さ（筋肉で増える）
+  const leftArm = `M${cx - armInner} 59 C${cx - armInner - armW} 65 ${cx - armInner - armW} 86 ${cx - armInner - armW + 0.5} 106 C${cx - armInner - armW} 113 ${cx - armInner + 1.5} 113 ${cx - armInner + 1.5} 106 C${cx - armInner + 1} 86 ${cx - armInner} 70 ${cx - armInner} 61 Z`;
+  const rightArm = `M${cx + armInner} 59 C${cx + armInner + armW} 65 ${cx + armInner + armW} 86 ${cx + armInner + armW - 0.5} 106 C${cx + armInner + armW} 113 ${cx + armInner - 1.5} 113 ${cx + armInner - 1.5} 106 C${cx + armInner - 1} 86 ${cx + armInner} 70 ${cx + armInner} 61 Z`;
 
   const height = (width * 235) / 100;
   return (
